@@ -1,0 +1,22 @@
+# The contents of this file is licensed by its authors and copyright holders under the Apache
+# License (Version 2.0), MIT license, or Mozilla Public License (Version 2.0), at your option. The
+# contents of this file may not be copied, modified, or distributed except according to those terms.
+# See the COPYRIGHT file at the top-level directory of this distribution for copies of these
+# licenses and more information.
+
+[package]
+name = "objrs_macros"
+version = "0.0.0"
+authors = ["Michael Bradshaw <mjbshaw@gmail.com>"]
+license = "Apache-2.0 OR MIT OR MPL-2.0"
+description = "Macro magic for objrs."
+
+# TODO: add a hacky feature that works around generics + incremental compilation. By default it should be enabled for [profile.dev], [profile.test], and [profile.doc].
+
+[dependencies]
+proc-macro2 = { version = "0.3", features = ["nightly"] }
+quote = { version = "0.5" }
+syn = { version = "0.13", features = ["full"] }
+
+[lib]
+proc-macro = true

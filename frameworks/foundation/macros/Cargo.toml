@@ -1,0 +1,19 @@
+# The contents of this file is licensed by its authors and copyright holders under the Apache
+# License (Version 2.0), MIT license, or Mozilla Public License (Version 2.0), at your option. The
+# contents of this file may not be copied, modified, or distributed except according to those terms.
+# See the COPYRIGHT file at the top-level directory of this distribution for copies of these
+# licenses and more information.
+
+[package]
+name = "objrs_frameworks_foundation_macros"
+version = "0.0.0"
+authors = ["Michael Bradshaw <mjbshaw@gmail.com>"]
+license = "Apache-2.0 OR MIT OR MPL-2.0"
+description = "Macro magic for things like compile-time NSStrings."
+
+[dependencies]
+# TODO: use syn instead of literalext.
+literalext = { version = "0.2.0", default-features = false, features = ["proc-macro"] }
+
+[lib]
+proc-macro = true

@@ -1,0 +1,9 @@
+objrs is an open source project. The contents of all files within the objrs project are triple-licensed under the Apache License (Version 2.0), MIT license, or Mozilla Public License (Version 2.0), at your option.
+
+See http://www.apache.org/licenses/LICENSE-2.0 or the LICENSE-APACHE file at the top-level directory of this distribution for a copy of the Apache License, Version 2.0.
+
+See http://opensource.org/licenses/MIT or the LICENSE-MIT file at the top-level directory of this distribution for a copy of the MIT license.
+
+See http://mozilla.org/MPL/2.0/ or the LICENSE-MPL file at the top-level directory of this distribution for a copy of the Mozilla Public License, Version 2.0.
+
+You are free to fork the objrs project (under its license terms), though if you do so it is asked that you use a name distinct from objrs.
