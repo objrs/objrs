@@ -9,11 +9,12 @@ extern crate objrs;
 use nsstring;
 use objrs::objrs;
 
-#[objrs(class = "NSMutableString", super = "nsstring::NSString")]
+#[objrs(class, super = nsstring::NSString)]
 #[link(name = "Foundation", kind = "framework")]
 pub struct NSMutableString;
 
 #[objrs(impl)]
+#[link(name = "Foundation", kind = "framework")]
 impl NSMutableString {
   #[objrs(selector = "stringWithCapacity:")]
   pub fn string_with_capacity(capacity: usize) -> objrs::Strong<NSMutableString> {}

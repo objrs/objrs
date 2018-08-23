@@ -29,213 +29,192 @@ pub struct bucket_t {
 #[allow(non_camel_case_types)]
 pub struct cache_t {
   pub buckets: *mut bucket_t,
-  mask: mask_t,
-  occupied: mask_t,
+  pub mask: mask_t,
+  pub occupied: mask_t,
 }
 
+#[derive(Copy, Clone)]
 #[repr(C)]
 #[allow(non_camel_case_types)]
 pub struct method_t {
-  name: objc::SEL,
-  types: *const libc::c_char,
-  imp: objc::IMP,
+  pub name: objc::SEL,
+  pub types: *const libc::c_char,
+  pub imp: objc::IMP,
 }
 
 #[repr(C)]
 #[allow(non_camel_case_types)]
 pub struct ivar_t {
-  offset: *mut i32,
-  name: *const libc::c_char,
-  encoded_type: *const libc::c_char,
-  alignment: u32,
-  size: u32,
+  pub offset: *mut i32,
+  pub name: *const libc::c_char,
+  pub encoded_type: *const libc::c_char,
+  pub alignment_raw: u32,
+  pub size: u32,
 }
 
 #[repr(C)]
 #[allow(non_camel_case_types)]
 pub struct property_t {
-  name: *const libc::c_char,
-  attributes: *const libc::c_char,
-}
-
-// TODO: Delete this and switch to core::mem::size_of once it's const.
-impl method_t {
-  #[cfg(target_pointer_width = "32")]
-  pub const ENTSIZE: u32 = 12;
-
-  #[cfg(target_pointer_width = "64")]
-  pub const ENTSIZE: u32 = 24;
-}
-
-impl ivar_t {
-  #[cfg(target_pointer_width = "32")]
-  pub const ENTSIZE: u32 = 20;
-
-  #[cfg(target_pointer_width = "64")]
-  pub const ENTSIZE: u32 = 32;
-}
-
-impl property_t {
-  #[cfg(target_pointer_width = "32")]
-  pub const ENTSIZE: u32 = 8;
-
-  #[cfg(target_pointer_width = "64")]
-  pub const ENTSIZE: u32 = 16;
+  pub name: *const libc::c_char,
+  pub attributes: *const libc::c_char,
 }
 
 #[repr(C)]
 #[allow(non_camel_case_types)]
 pub struct method_list_t {
-  entsize_and_flags: u32,
-  count: u32,
-  first: [method_t],
+  pub entsize_and_flags: u32,
+  pub count: u32,
+  // pub first: [method_t],
 }
 
 #[repr(C)]
 #[allow(non_camel_case_types)]
 pub struct ivar_list_t {
-  entsize_and_flags: u32,
-  count: u32,
-  first: [ivar_t],
+  pub entsize_and_flags: u32,
+  pub count: u32,
+  // pub first: [ivar_t],
 }
 
 #[repr(C)]
 #[allow(non_camel_case_types)]
 pub struct property_list_t {
-  entsize_and_flags: u32,
-  count: u32,
-  first: [property_t],
+  pub entsize_and_flags: u32,
+  pub count: u32,
+  // pub first: [property_t],
 }
 
 #[repr(C)]
 #[allow(non_camel_case_types)]
 pub struct protocol_t {
-  mangled_name: *const libc::c_char,
-  protocols: *mut usize,
-  instance_methods: *mut method_list_t,
-  class_methods: *mut method_list_t,
-  optional_instance_methods: *mut method_list_t,
-  optional_class_methods: *mut method_list_t,
-  instance_properties: *mut property_list_t,
-  size: u32,
-  flags: u32,
-  extended_method_types: *mut *const libc::c_char,
-  demangled_name: *const libc::c_char,
+  pub mangled_name: *const libc::c_char,
+  pub protocols: *mut usize,
+  pub instance_methods: *mut method_list_t,
+  pub class_methods: *mut method_list_t,
+  pub optional_instance_methods: *mut method_list_t,
+  pub optional_class_methods: *mut method_list_t,
+  pub instance_properties: *mut property_list_t,
+  pub size: u32,
+  pub flags: u32,
+  pub extended_method_types: *mut *const libc::c_char,
+  pub demangled_name: *const libc::c_char,
 }
 
 #[repr(C)]
 #[allow(non_camel_case_types)]
 pub struct protocol_list_t {
-  count: usize,
-  list: [usize],
+  pub count: usize,
+  // pub list: [usize],
 }
 
 // #[repr(C)]
 // #[allow(non_camel_case_types)]
 // pub struct locstamped_category_t {
-//   cat: *mut category_t,
-//   hi: *mut header_info,
+//   pub cat: *mut category_t,
+//   pub hi: *mut header_info,
 // }
 
 // #[repr(C)]
 // #[allow(non_camel_case_types)]
 // pub struct locstamped_category_list_t {
-//   count: u32,
+//   pub count: u32,
 //   #[cfg(target_pointer_width = "64")]
-//   reserved: u32,
-//   list: [locstamped_category_t],
+//   pub reserved: u32,
+//   pub list: [locstamped_category_t],
 // }
 
 #[repr(C)]
 #[allow(non_camel_case_types)]
 pub struct class_ro_t {
-  flags: u32,
-  instance_start: u32,
-  instance_size: u32,
+  pub flags: u32,
+  pub instance_start: u32,
+  pub instance_size: u32,
   #[cfg(target_pointer_width = "64")]
-  reserved: u32,
+  pub reserved: u32,
 
-  ivar_layout: *const u8,
+  pub ivar_layout: *const u8,
 
-  name: *const libc::c_char,
-  base_method_list: *mut method_list_t,
-  base_protocols: *mut protocol_list_t,
-  ivars: *const ivar_list_t,
+  pub name: *const libc::c_char,
+  pub base_method_list: *mut method_list_t,
+  pub base_protocols: *mut protocol_list_t,
+  pub ivars: *const ivar_list_t,
 
-  weak_ivar_layout: *const u8,
-  base_properties: *mut property_list_t,
+  pub weak_ivar_layout: *const u8,
+  pub base_properties: *mut property_list_t,
 }
 
 #[repr(C)]
 #[allow(non_camel_case_types)]
 pub union method_array_t {
-  list: *mut method_list_t,
-  array_and_flag: usize,
+  pub list: *mut method_list_t,
+  pub array_and_flag: usize,
 }
 
 #[repr(C)]
 #[allow(non_camel_case_types)]
 pub union property_array_t {
-  list: *mut property_list_t,
-  array_and_flag: usize,
+  pub list: *mut property_list_t,
+  pub array_and_flag: usize,
 }
 
 #[repr(C)]
 #[allow(non_camel_case_types)]
 pub union protocol_array_t {
-  list: *mut protocol_list_t,
-  array_and_flag: usize,
+  pub list: *mut protocol_list_t,
+  pub array_and_flag: usize,
 }
 
 #[repr(C)]
 #[allow(non_camel_case_types)]
 pub struct class_rw_t {
-  flags: u32,
-  version: u32,
-  ro: *const class_ro_t,
-  methods: method_array_t,
-  properties: property_array_t,
-  protocols: protocol_array_t,
-  first_subclass: objc::Class,
-  next_sibling_class: objc::Class,
-  demangled_name: *mut libc::c_char,
+  pub flags: u32,
+  pub version: u32,
+  pub ro: *const class_ro_t,
+  pub methods: method_array_t,
+  pub properties: property_array_t,
+  pub protocols: protocol_array_t,
+  pub first_subclass: objc::Class,
+  pub next_sibling_class: objc::Class,
+  pub demangled_name: *mut libc::c_char,
 }
 
 #[repr(C)]
 #[allow(non_camel_case_types)]
 pub struct objc_class {
-  isa: objc::Class,
-  superclass: objc::Class,
-  cache: cache_t,
-  bits: usize,
+  pub isa: objc::Class,
+  pub superclass: objc::Class,
+  pub cache: cache_t,
+  pub bits: usize,
 }
 
 #[allow(non_camel_case_types)]
-enum classref {}
+pub enum classref {} // TODO: just use an extern type here?
 #[allow(non_camel_case_types)]
-type classref_t = *mut classref;
+pub type classref_t = *mut classref;
 
 #[repr(C)]
 #[allow(non_camel_case_types)]
 pub struct category_t {
-  name: *const libc::c_char,
-  cls: classref_t,
-  instance_methods: *mut method_list_t,
-  class_methods: *mut method_list_t,
-  protocols: *mut protocol_list_t,
-  instance_properties: *mut property_list_t,
+  pub name: *const libc::c_char,
+  pub cls: classref_t,
+  pub instance_methods: *mut method_list_t,
+  pub class_methods: *mut method_list_t,
+  pub protocols: *mut protocol_list_t,
+  pub instance_properties: *mut property_list_t,
+  // objc-runtime-new.h is missing the following properties. See_category_t and CategorynfABITy in https://github.com/llvm-mirror/clang/blob/master/lib/CodeGen/CGObjCMac.cpp for how they get generated (and observe the generated assembly).
+  pub class_properties: *mut property_list_t,
+  pub size: u32,
 }
 
 #[repr(C)]
 #[allow(non_camel_case_types)]
 pub struct objc_super2 {
-  receiver: objc::id,
-  current_class: objc::Class,
+  pub receiver: objc::id,
+  pub current_class: objc::Class,
 }
 
 #[repr(C)]
 #[allow(non_camel_case_types)]
 pub struct message_ref_t {
-  imp: objc::IMP,
-  sel: objc::SEL,
+  pub imp: objc::IMP,
+  pub sel: objc::SEL,
 }

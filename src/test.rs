@@ -150,44 +150,14 @@ impl<'a> core::iter::Iterator for EncodingIter<'a> {
       b'i' | b'I' => return Some(Encoding::exact(core::mem::size_of::<libc::c_int>(), byte)),
       b's' | b'S' => return Some(Encoding::exact(core::mem::size_of::<libc::c_short>(), byte)),
       b'l' | b'L' => return Some(Encoding::exact(core::mem::size_of::<libc::c_int>(), byte)),
-      b'q' | b'Q' => {
-        return Some(Encoding::exact(
-          core::mem::size_of::<libc::c_longlong>(),
-          byte,
-        ))
-      }
+      b'q' | b'Q' => return Some(Encoding::exact(core::mem::size_of::<libc::c_longlong>(), byte)),
       b'f' => return Some(Encoding::exact(core::mem::size_of::<libc::c_float>(), byte)),
-      b'd' => {
-        return Some(Encoding::exact(
-          core::mem::size_of::<libc::c_double>(),
-          byte,
-        ))
-      }
+      b'd' => return Some(Encoding::exact(core::mem::size_of::<libc::c_double>(), byte)),
       b'B' => return Some(Encoding::exact(core::mem::size_of::<bool>(), byte)),
-      b'*' => {
-        return Some(Encoding::exact(
-          core::mem::size_of::<*const libc::c_char>(),
-          byte,
-        ))
-      }
-      b'@' => {
-        return Some(Encoding::exact(
-          core::mem::size_of::<objrs_runtime::id>(),
-          byte,
-        ))
-      }
-      b'#' => {
-        return Some(Encoding::exact(
-          core::mem::size_of::<objrs_runtime::Class>(),
-          byte,
-        ))
-      }
-      b':' => {
-        return Some(Encoding::exact(
-          core::mem::size_of::<objrs_runtime::SEL>(),
-          byte,
-        ))
-      }
+      b'*' => return Some(Encoding::exact(core::mem::size_of::<*const libc::c_char>(), byte)),
+      b'@' => return Some(Encoding::exact(core::mem::size_of::<objrs_runtime::id>(), byte)),
+      b'#' => return Some(Encoding::exact(core::mem::size_of::<objrs_runtime::Class>(), byte)),
+      b':' => return Some(Encoding::exact(core::mem::size_of::<objrs_runtime::SEL>(), byte)),
       b'?' => return Some(Encoding::full_range(byte)),
 
       b']' | b'}' | b')' => return None,
@@ -232,9 +202,7 @@ pub unsafe fn sane_argument_type<T: core::any::Any>(
 
 fn type_approximately_matches_encoding<T: core::any::Any>(encoding: &u8) -> bool {
   let size_of_t = core::mem::size_of::<T>();
-  let decoded = EncodingIter::new(encoding)
-    .next()
-    .unwrap_or(Encoding::full_range(b'?'));
+  let decoded = EncodingIter::new(encoding).next().unwrap_or(Encoding::full_range(b'?'));
   if size_of_t < decoded.min || size_of_t > decoded.max {
     return false;
   }
@@ -695,10 +663,7 @@ fn test_minimum_size_iter() {
       assert_full_range!($encoding, $encoding[0])
     };
     ($encoding:expr, $expected_primitive_type:expr) => {
-      assert_eq!(
-        parse!($encoding),
-        Some(Encoding::full_range($expected_primitive_type))
-      )
+      assert_eq!(parse!($encoding), Some(Encoding::full_range($expected_primitive_type)))
     };
   }
 
@@ -763,23 +728,12 @@ fn test_minimum_size_iter() {
   assert_exact!(b"^{example=@*i}\0", *const u8);
   assert_exact!(b"^^{example}\0", *const u8);
   assert_exact!(b"r^{opaqueCMFormatDescription=}\0", b'^', *const u8);
-  assert_min!(
-    b"{example=@*i}\0",
-    objrs_runtime::id,
-    *const libc::c_char,
-    libc::c_int
-  );
+  assert_min!(b"{example=@*i}\0", objrs_runtime::id, *const libc::c_char, libc::c_int);
   assert_min!(b"{CGRect={CGPoint=dd}{CGSize=dd}}\0", 32);
   assert_min!(b"{CGAffineTransform=dddddd}\0", 48);
   assert_min!(b"{AudioStreamBasicDescription=dIIIIIIII}\0", 40);
   assert_min!(b"{opaqueCMFormatDescription=}\0", 0);
-  assert_min!(
-    b"{AudioChannelLayout=III[1{AudioChannelDescription=II[3f]}]}\0",
-    32
-  );
+  assert_min!(b"{AudioChannelLayout=III[1{AudioChannelDescription=II[3f]}]}\0", 32);
   assert_min!(b"(_GLKMatrix4={?=ffffffffffffffff}[16f])\0", 64);
-  assert_min!(
-    b"(vU1024=[8]{?=}{?=IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII})\0",
-    128
-  );
+  assert_min!(b"(vU1024=[8]{?=}{?=IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII})\0", 128);
 }

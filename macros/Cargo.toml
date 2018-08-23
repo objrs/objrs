@@ -6,7 +6,7 @@
 
 [package]
 name = "objrs_macros"
-version = "0.0.0"
+version = "0.0.1"
 authors = ["Michael Bradshaw <mjbshaw@gmail.com>"]
 license = "Apache-2.0 OR MIT OR MPL-2.0"
 description = "Macro magic for objrs."
@@ -14,9 +14,9 @@ description = "Macro magic for objrs."
 # TODO: add a hacky feature that works around generics + incremental compilation. By default it should be enabled for [profile.dev], [profile.test], and [profile.doc].
 
 [dependencies]
-proc-macro2 = { version = "0.3", features = ["nightly"] }
-quote = { version = "0.5" }
-syn = { version = "0.13", features = ["full"] }
+proc-macro2 = { version = "0.4", features = ["nightly"] }
+quote = { version = "0.6" }
+syn = { version = "0.14", features = ["full", "visit-mut", "extra-traits"] }
 
 [lib]
 proc-macro = true

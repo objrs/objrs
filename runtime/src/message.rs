@@ -6,6 +6,8 @@
 
 // See https://github.com/opensource-apple/objc4/blob/master/runtime/message.h
 
+use objc;
+
 #[link(name = "objc")]
 extern "C" {
   pub fn objc_msgSend();
@@ -24,4 +26,10 @@ extern "C" {
   pub fn _objc_msgForward();
   #[cfg(not(target_arch = "aarch64"))]
   pub fn _objc_msgForward_stret();
+}
+
+#[repr(C)]
+pub struct objc_super {
+  pub receiver: objc::id,
+  pub super_class: objc::Class,
 }

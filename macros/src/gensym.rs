@@ -33,25 +33,3 @@ pub fn random_identifier() -> [u8; 32] {
   ];
   return unsafe { core::mem::transmute(symbol) };
 }
-
-// #[proc_macro]
-// pub fn gensym(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-//   const HELP_MESSAGE: &'static str = "gensym! requires exactly zero or one identifier. Examples: gensym!(), gensym!(foo); gensym!(bar); gensym!(this_is_an_identifier);";
-//   let mut iter = input.into_iter();
-//   let token_tree = iter
-//     .next()
-//     .unwrap_or_else(|| token_tree_from_term("").into());
-//   if iter.next().is_some() {
-//     panic!(HELP_MESSAGE);
-//   }
-
-//   let term = match token_tree.kind {
-//     proc_macro::TokenTerm::Term(ref t) => t.as_str(),
-//     _ => panic!(HELP_MESSAGE),
-//   };
-
-//   let random_id = &random_identifier();
-//   let random_id_str = unsafe { core::str::from_utf8_unchecked(random_id) };
-
-//   return token_tree_from_term(&[term, random_id_str].concat()).into();
-// }

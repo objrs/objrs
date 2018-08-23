@@ -4,46 +4,105 @@
 // terms. See the COPYRIGHT file at the top-level directory of this distribution for copies of these
 // licenses and more information.
 
-#![feature(proc_macro, proc_macro_non_items)]
-#![recursion_limit = "256"]
+// TODO: Use span's resolved_at/located_at to use def_site() span with line/column information of user code.
+
+#![feature(proc_macro_diagnostic, proc_macro_span)]
+#![recursion_limit = "512"]
 
 extern crate core;
 extern crate proc_macro;
+extern crate proc_macro2;
 #[macro_use]
 extern crate quote;
-extern crate proc_macro2;
 extern crate syn;
 
-use class::parse_class;
-use class_impl::parse_impl;
-use parser::AttributeParser;
+use class::{parse_class, ClassAttr};
+use class_impl::{parse_impl, ImplAttr};
 use proc_macro::Diagnostic;
 use proc_macro2::TokenStream;
-use selector::parse_selector;
-use syn::buffer::TokenBuffer;
+use protocol::{parse_protocol, ProtocolAttr};
+use quote::quote;
+use syn::{
+  alt, buffer::Cursor, buffer::TokenBuffer, call, custom_keyword, do_parse, named, syn,
+  synom::PResult, synom::Synom,
+};
 
 mod class;
 mod class_impl;
 mod gensym;
-mod parser;
+mod ivar;
+mod property;
+mod protocol;
 mod selector;
 mod test;
+mod util;
+
+fn consume_all_tokens(_: Cursor) -> PResult<()> {
+  return Ok(((), Cursor::empty()));
+}
+
+enum ObjrsAttr {
+  Impl(ImplAttr),
+  Class(ClassAttr),
+  Protocol(ProtocolAttr),
+  Selector,
+  Ivar,
+}
+
+impl Synom for ObjrsAttr {
+  named!(parse -> Self, do_parse!(
+    attr: alt!(
+      syn!(ImplAttr) =>  { ObjrsAttr::Impl }
+      |
+      syn!(ClassAttr) =>  { ObjrsAttr::Class }
+      |
+      syn!(ProtocolAttr) =>  { ObjrsAttr::Protocol }
+      |
+      do_parse!(custom_keyword!(selector) >> call!(consume_all_tokens) >> ()) =>  { |_| ObjrsAttr::Selector }
+      |
+      do_parse!(custom_keyword!(ivar) >> call!(consume_all_tokens) >> ()) =>  { |_| ObjrsAttr::Ivar }
+    ) >> (attr)
+  ));
+
+  fn description() -> Option<&'static str> {
+    return Some("objrs attribute");
+  }
+}
+
+fn parse<T: Synom>(cursor: Cursor) -> Result<T, Diagnostic> {
+  let (value, cursor) =
+    <T as Synom>::parse(cursor).map_err(|err| cursor.span().unstable().error(err.to_string()))?;
+  if cursor.eof() {
+    return Ok(value);
+  } else {
+    return Err(cursor.span().unstable().error("tokens were not parsed"));
+  }
+}
 
 fn shim(args: TokenStream, input: TokenStream) -> Result<TokenStream, Diagnostic> {
   let args_buffer = TokenBuffer::new2(args);
-
-  let mut args_parser = AttributeParser::new(args_buffer.begin());
-  let key = args_parser.any_keyword(&["class", "impl", "selector"])?;
-
-  match key.as_ref() {
-    "class" => return parse_class(args_parser, input),
-    "impl" => return parse_impl(args_parser, input),
-    "selector" => return parse_selector(args_parser, input),
-    _ => panic!(
-      "BUG: unexpected token `{}` as first argument in attribute",
-      key
-    ),
-  };
+  let cursor = args_buffer.begin();
+  match parse(cursor)? {
+    ObjrsAttr::Impl(attr) => return parse_impl(attr, input),
+    ObjrsAttr::Class(attr) => return parse_class(attr, input),
+    ObjrsAttr::Protocol(attr) => return parse_protocol(attr, input),
+    ObjrsAttr::Selector => {
+      return Err(
+        cursor
+          .span()
+          .unstable()
+          .error("attribute must be enclosed in an impl block with a #[objrs(impl)] attribute"),
+      )
+    }
+    ObjrsAttr::Ivar => {
+      return Err(
+        cursor
+          .span()
+          .unstable()
+          .error("attribute must be enclosed in a struct item with a #[objrs(class)] attribute"),
+      )
+    }
+  }
 }
 
 #[proc_macro_attribute]
@@ -55,7 +114,22 @@ pub fn objrs(
     Ok(stream) => return stream.into(),
     Err(diagnostic) => {
       diagnostic.emit();
-      return proc_macro::TokenStream::empty();
+      return proc_macro::TokenStream::new();
+    }
+  }
+}
+
+#[proc_macro]
+pub fn selector(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+  match selector::parse_selector_ref(input.into()) {
+    Ok(stream) => return stream.into(),
+    Err(diagnostic) => {
+      diagnostic.emit();
+      // Return an empty SEL. This should help other diagnostic messages.
+      return quote!{{
+        extern crate objrs as __objrs_root;
+        __objrs_root::runtime::SEL(0 as *const _)
+      }}.into();
     }
   }
 }
@@ -65,7 +139,7 @@ pub fn objrs(
 //   let iter = input.into_iter().map(|mut token_tree| {
 //     match token_tree {
 //       TokenTree::Op(op) if op.op() == ';' && op.spacing() == Spacing::Alone => {
-//         token_tree = TokenTree::Group(Group::new(Delimiter::Brace, TokenStream::empty()))
+//         token_tree = TokenTree::Group(Group::new(Delimiter::Brace, TokenStream::new()))
 //       }
 //       _ => (),
 //     }
@@ -75,12 +149,39 @@ pub fn objrs(
 //   return iter.collect();
 // }
 
-#[proc_macro]
-pub fn nothing(_: proc_macro::TokenStream) -> proc_macro::TokenStream {
-  return proc_macro::TokenStream::empty();
-}
+// #[proc_macro_attribute]
+// pub fn hack(_args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+//   use quote::quote;
+//   let pub_foo = proc_macro2::Ident::new("Foo", proc_macro2::Span::call_site());
+//   let priv_foo: proc_macro::TokenTree = proc_macro::Ident::new("Foo", proc_macro::Span::def_site()).into();//proc_macro2::Ident::new("Foo", proc_macro2::Span::def_site());
+//   let priv_foo: proc_macro::TokenStream = priv_foo.into();
+//   let priv_foo: proc_macro2::TokenStream = priv_foo.into();
+//   let foo = quote!{
+//     pub struct #priv_foo{
+//       x: u32,
+//     }
+//     impl core::ops::Deref for #pub_foo {
+//       type Target = #priv_foo;
 
-#[proc_macro]
-pub fn debug(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-  panic!("{:?}", input);
-}
+//       #[inline(always)]
+//       fn deref(&self) -> &Self::Target {
+//         return unsafe { core::mem::transmute(self) };
+//       }
+//     }
+//   };
+//   let input: TokenStream = input.into();
+//   return quote!{
+//     #input
+//     #foo
+//   }.into();
+// }
+
+// #[proc_macro]
+// pub fn nothing(_: proc_macro::TokenStream) -> proc_macro::TokenStream {
+//   return proc_macro::TokenStream::new();
+// }
+
+// #[proc_macro]
+// pub fn debug(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+//   panic!("{:?}", input);
+// }

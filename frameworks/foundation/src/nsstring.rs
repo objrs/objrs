@@ -14,37 +14,123 @@ use objrs::objrs;
 
 // TODO: LLVM's Early CSE pass ("early-cse": http://llvm.org/doxygen/EarlyCSE_8cpp_source.html) is breaking objrs. It optimizes out the static selref variable. Even marking the variable as #[used] doesn't fix it (that causes the variable to not be optimized out, but the LLVM IR still doesn't use it, as it prefers loading the address of the method name instead). Run rustc with ` -C opt-level=0 -C passes=early-cse` to see the impact (use `-C llvm-args=-print-after-all` to verify that it's indeed the Early CSE pass that's causing this).
 
-#[objrs(class = "NSString", super = "nsobject::NSObject")]
+#[repr(transparent)]
+pub struct NSStringEncoding(usize);
+
+#[allow(non_upper_case_globals)]
+pub const NSASCIIStringEncoding: NSStringEncoding = NSStringEncoding(1);
+#[allow(non_upper_case_globals)]
+pub const NSNEXTSTEPStringEncoding: NSStringEncoding = NSStringEncoding(2);
+#[allow(non_upper_case_globals)]
+pub const NSJapaneseEUCStringEncoding: NSStringEncoding = NSStringEncoding(3);
+#[allow(non_upper_case_globals)]
+pub const NSUTF8StringEncoding: NSStringEncoding = NSStringEncoding(4);
+#[allow(non_upper_case_globals)]
+pub const NSISOLatin1StringEncoding: NSStringEncoding = NSStringEncoding(5);
+#[allow(non_upper_case_globals)]
+pub const NSSymbolStringEncoding: NSStringEncoding = NSStringEncoding(6);
+#[allow(non_upper_case_globals)]
+pub const NSNonLossyASCIIStringEncoding: NSStringEncoding = NSStringEncoding(7);
+#[allow(non_upper_case_globals)]
+pub const NSShiftJISStringEncoding: NSStringEncoding = NSStringEncoding(8);
+#[allow(non_upper_case_globals)]
+pub const NSISOLatin2StringEncoding: NSStringEncoding = NSStringEncoding(9);
+#[allow(non_upper_case_globals)]
+pub const NSUnicodeStringEncoding: NSStringEncoding = NSStringEncoding(10);
+#[allow(non_upper_case_globals)]
+pub const NSWindowsCP1251StringEncoding: NSStringEncoding = NSStringEncoding(11);
+#[allow(non_upper_case_globals)]
+pub const NSWindowsCP1252StringEncoding: NSStringEncoding = NSStringEncoding(12);
+#[allow(non_upper_case_globals)]
+pub const NSWindowsCP1253StringEncoding: NSStringEncoding = NSStringEncoding(13);
+#[allow(non_upper_case_globals)]
+pub const NSWindowsCP1254StringEncoding: NSStringEncoding = NSStringEncoding(14);
+#[allow(non_upper_case_globals)]
+pub const NSWindowsCP1250StringEncoding: NSStringEncoding = NSStringEncoding(15);
+#[allow(non_upper_case_globals)]
+pub const NSISO2022JPStringEncoding: NSStringEncoding = NSStringEncoding(21);
+#[allow(non_upper_case_globals)]
+pub const NSMacOSRomanStringEncoding: NSStringEncoding = NSStringEncoding(30);
+#[allow(non_upper_case_globals)]
+pub const NSUTF16StringEncoding: NSStringEncoding = NSUnicodeStringEncoding;
+#[allow(non_upper_case_globals)]
+pub const NSUTF16BigEndianStringEncoding: NSStringEncoding = NSStringEncoding(0x90000100);
+#[allow(non_upper_case_globals)]
+pub const NSUTF16LittleEndianStringEncoding: NSStringEncoding = NSStringEncoding(0x94000100);
+#[allow(non_upper_case_globals)]
+pub const NSUTF32StringEncoding: NSStringEncoding = NSStringEncoding(0x8c000100);
+#[allow(non_upper_case_globals)]
+pub const NSUTF32BigEndianStringEncoding: NSStringEncoding = NSStringEncoding(0x98000100);
+#[allow(non_upper_case_globals)]
+pub const NSUTF32LittleEndianStringEncoding: NSStringEncoding = NSStringEncoding(0x9c000100);
+#[allow(non_upper_case_globals)]
+#[deprecated]
+pub const NSProprietaryStringEncoding: NSStringEncoding = NSStringEncoding(65536);
+
+impl NSStringEncoding {
+  pub const ASCII: NSStringEncoding = NSASCIIStringEncoding;
+  pub const NEXTSTEP: NSStringEncoding = NSNEXTSTEPStringEncoding;
+  pub const JAPANESE_EUC: NSStringEncoding = NSJapaneseEUCStringEncoding;
+  pub const UTF8: NSStringEncoding = NSUTF8StringEncoding;
+  pub const ISO_LATIN_1: NSStringEncoding = NSISOLatin1StringEncoding;
+  pub const SYMBOL: NSStringEncoding = NSSymbolStringEncoding;
+  pub const NON_LOSSY_ASCII: NSStringEncoding = NSNonLossyASCIIStringEncoding;
+  pub const SHIFT_JIS: NSStringEncoding = NSShiftJISStringEncoding;
+  pub const ISO_LATIN_2: NSStringEncoding = NSISOLatin2StringEncoding;
+  pub const UNICODE: NSStringEncoding = NSUnicodeStringEncoding;
+  pub const WINDOWS_CP_1251: NSStringEncoding = NSWindowsCP1251StringEncoding;
+  pub const WINDOWS_CP_1252: NSStringEncoding = NSWindowsCP1252StringEncoding;
+  pub const WINDOWS_CP_1253: NSStringEncoding = NSWindowsCP1253StringEncoding;
+  pub const WINDOWS_CP_1254: NSStringEncoding = NSWindowsCP1254StringEncoding;
+  pub const WINDOWS_CP_1250: NSStringEncoding = NSWindowsCP1250StringEncoding;
+  pub const ISO_2022_JP: NSStringEncoding = NSISO2022JPStringEncoding;
+  pub const MAC_OS_ROMAN: NSStringEncoding = NSMacOSRomanStringEncoding;
+  pub const UTF16: NSStringEncoding = NSUTF16StringEncoding;
+  pub const UTF16_BIG_ENDIAN: NSStringEncoding = NSUTF16BigEndianStringEncoding;
+  pub const UTF16_LITTLE_ENDIAN: NSStringEncoding = NSUTF16LittleEndianStringEncoding;
+  pub const UTF32: NSStringEncoding = NSUTF32StringEncoding;
+  pub const UTF32_BIG_ENDIAN: NSStringEncoding = NSUTF32BigEndianStringEncoding;
+  pub const UTF32_LITTLE_ENDIAN: NSStringEncoding = NSUTF32LittleEndianStringEncoding;
+  #[allow(deprecated)]
+  #[deprecated]
+  pub const PROPRIETARY: NSStringEncoding = NSProprietaryStringEncoding;
+}
+
+#[objrs(class, super = nsobject::NSObject)]
 #[link(name = "Foundation", kind = "framework")]
 pub struct NSString;
 
 #[objrs(impl)]
+#[link(name = "Foundation", kind = "framework")]
 impl NSString {
   #[objrs(selector = "alloc")]
   pub fn alloc() -> objrs::Alloc<NSString> {}
 
-  // TODO: this is an example of taking a Rust type and mapping it to Objective-C. The wrapper has to be manually created.
+  #[objrs(selector = "alloc")]
   #[inline(always)]
-  pub fn init_with_bytes_encoding(
-    this: objrs::Alloc<NSString>,
-    bytes: &[u8],
-    encoding: usize, /* TODO: use a newtype rather than usize */
-  ) -> objrs::Strong<NSString> {
-    return Self::init_with_bytes_length_encoding(
-      this,
-      bytes.as_ptr() as *const libc::c_char,
-      bytes.len(),
-      encoding,
-    );
-  }
+  fn inline_alloc() -> objrs::Alloc<NSString> {}
 
-  #[objrs(selector = "initWithBytes:length:encoding:")]
-  pub fn init_with_bytes_length_encoding(
+  #[objrs(selector = "initWithBytes:length:encoding:", instance)]
+  #[inline(always)]
+  unsafe fn inline_init_with_bytes_length_encoding(
     this: objrs::Alloc<NSString>,
     bytes: *const libc::c_char,
     len: usize,
-    encoding: usize, /* TODO: use a newtype rather than usize */
+    encoding: NSStringEncoding,
   ) -> objrs::Strong<NSString> {
+  }
+
+  #[inline(never)]
+  pub fn from_str(string: &str) -> objrs::Strong<NSString> {
+    let this = Self::inline_alloc();
+    unsafe {
+      return Self::inline_init_with_bytes_length_encoding(
+        this,
+        string.as_ptr() as *const libc::c_char,
+        string.len(),
+        NSStringEncoding::UTF8,
+      );
+    }
   }
 
   #[objrs(selector = "string")]
@@ -99,15 +185,22 @@ impl NSString {
   }
 
   #[objrs(selector = "UTF8String")]
-  pub fn utf8_string(&self) -> &objrs::CStr {}
+  pub fn utf8_string(&self) -> Option<&objrs::CStr> {}
 
-  pub fn hacky(&self) -> &objrs::CStr {
-    return self.utf8_string();
-  }
+  #[objrs(selector = "lengthOfBytesUsingEncoding:")]
+  pub fn length_of_bytes_using_encoding(&self, encoding: NSStringEncoding) -> usize {}
 }
 
-pub fn hacky(this: &NSString) -> &objrs::CStr {
-  return this.utf8_string();
+impl AsRef<str> for NSString {
+  #[inline(always)]
+  fn as_ref(&self) -> &str {
+    let len = self.length_of_bytes_using_encoding(NSUTF8StringEncoding);
+    let utf8 = self.utf8_string().expect("NSString has no UTF-8 representation");
+    unsafe {
+      let slice = core::slice::from_raw_parts(utf8.as_ptr() as *const u8, len);
+      return core::str::from_utf8_unchecked(slice);
+    };
+  }
 }
 
 // See https://github.com/opensource-apple/CF/blob/master/CFString.c

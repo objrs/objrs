@@ -14,65 +14,72 @@ extern crate objrs;
 
 use objrs::objrs;
 
-// TODO: inject a SEL _cmd parameter.
-
-#[objrs(class = "NSObject", super = "")]
+#[objrs(class, root_class)]
 #[link(name = "Foundation", kind = "framework")]
-pub struct NSObject;
+#[repr(C)]
+pub struct NSObject {
+  #[deprecated]
+  isa: objrs::runtime::Class,
+}
 
 #[objrs(impl)]
+#[link(name = "Foundation", kind = "framework")]
 impl NSObject {
   #[objrs(selector = "new")]
   pub fn new() -> objrs::Strong<NSObject> {}
 
   #[objrs(selector = "alloc")]
-  pub unsafe fn alloc() -> objrs::Alloc<NSObject> {}
+  pub fn alloc() -> objrs::Alloc<NSObject> {}
 
-  #[objrs(selector = "init")]
-  pub unsafe fn init(this: objrs::Alloc<Self>) -> objrs::Strong<NSObject> {}
+  #[objrs(selector = "init", instance)]
+  pub fn init(this: objrs::Alloc<Self>) -> objrs::Strong<NSObject> {}
 
-  #[objrs(selector = "copy")]
-  pub unsafe fn copy(&self) -> objrs::Strong<NSObject> {}
+  // TODO: make this optionally available based on features.
+  // #[objrs(selector = "init")]
+  // pub fn init(self: objrs::Alloc<NSObject>) -> objrs::Strong<NSObject> {}
 
-  #[objrs(selector = "mutableCopy")]
-  pub unsafe fn mutable_copy(&self) -> objrs::Strong<NSObject> {}
+  // #[objrs(selector = "copy")]
+  // pub unsafe fn copy(&self) -> objrs::Strong<NSObject> {}
+
+  // #[objrs(selector = "mutableCopy")]
+  // pub unsafe fn mutable_copy(&self) -> objrs::Strong<NSObject> {}
 
   #[objrs(selector = "instancesRespondToSelector:")]
-  pub unsafe fn instances_respond_to_selector(sel: objrs::runtime::SEL) -> bool {}
+  pub fn instances_respond_to_selector(sel: objrs::runtime::SEL) -> bool {}
 
-  #[objrs(selector = "methodForSelector:")]
-  pub unsafe fn method_for_selector(&self, sel: objrs::runtime::SEL) -> objrs::runtime::IMP {}
+  // #[objrs(selector = "methodForSelector:")]
+  // pub unsafe fn method_for_selector(&self, sel: objrs::runtime::SEL) -> objrs::runtime::IMP {}
 
-  #[objrs(selector = "instanceMethodForSelector:")]
-  pub unsafe fn instance_method_for_selector(sel: objrs::runtime::SEL) -> objrs::runtime::IMP {}
+  // #[objrs(selector = "instanceMethodForSelector:")]
+  // pub unsafe fn instance_method_for_selector(sel: objrs::runtime::SEL) -> objrs::runtime::IMP {}
 
-  #[objrs(selector = "doesNotRecognizeSelector:")]
-  pub unsafe fn does_not_recognize_selector(&self, sel: objrs::runtime::SEL) {}
+  // #[objrs(selector = "doesNotRecognizeSelector:")]
+  // pub unsafe fn does_not_recognize_selector(&self, sel: objrs::runtime::SEL) {}
 
-  #[objrs(selector = "forwardingTargetForSelector:")]
-  pub unsafe fn forwarding_target_for_selector(
-    &self,
-    sel: objrs::runtime::SEL,
-  ) -> objrs::runtime::id {
-  }
+  // #[objrs(selector = "forwardingTargetForSelector:")]
+  // pub unsafe fn forwarding_target_for_selector(
+  //   &self,
+  //   sel: objrs::runtime::SEL,
+  // ) -> objrs::runtime::id {
+  // }
 
   #[objrs(selector = "hash")]
-  pub unsafe fn hash() -> usize {}
+  pub fn hash() -> usize {}
 
   #[objrs(selector = "superclass")]
-  pub unsafe fn superclass() -> objrs::runtime::Class {}
+  pub fn superclass() -> objrs::runtime::Class {}
 
   #[objrs(selector = "class")]
-  pub unsafe fn class() -> objrs::runtime::Class {}
+  pub fn class() -> objrs::runtime::Class {}
 
-  #[objrs(selector = "isSubclassOfClass:")]
-  pub unsafe fn is_subclass_of_class(class: objrs::runtime::Class) -> bool {}
+  // #[objrs(selector = "isSubclassOfClass:")]
+  // pub unsafe fn is_subclass_of_class(class: objrs::runtime::Class) -> bool {}
 
-  #[objrs(selector = "resolveClassMethod:")]
-  pub unsafe fn resolve_class_method(sel: objrs::runtime::SEL) -> bool {}
+  // #[objrs(selector = "resolveClassMethod:")]
+  // pub unsafe fn resolve_class_method(sel: objrs::runtime::SEL) -> bool {}
 
-  #[objrs(selector = "resolveInstanceMethod:")]
-  pub unsafe fn resolve_instance_method(sel: objrs::runtime::SEL) -> bool {}
+  // #[objrs(selector = "resolveInstanceMethod:")]
+  // pub unsafe fn resolve_instance_method(sel: objrs::runtime::SEL) -> bool {}
 }
 
 // @protocol NSObject

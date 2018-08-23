@@ -4,7 +4,7 @@
 // terms. See the COPYRIGHT file at the top-level directory of this distribution for copies of these
 // licenses and more information.
 
-#![feature(global_asm, proc_macro, repr_transparent, untagged_unions, used)]
+#![feature(global_asm, untagged_unions, used)]
 #![no_std]
 
 mod message;
@@ -34,20 +34,32 @@ extern crate libc;
 
 #[doc(hidden)]
 pub mod __objrs {
-  pub trait Class {
+  pub unsafe trait Class {
     const CLASS_NAME: &'static str;
     const CLASS_NAME_CSTR: &'static str;
+
+    const HAS_IVARS: bool;
+    const IS_ROOT_CLASS: bool;
+    const REQUIRES_CXX_CONSTRUCT: bool;
+    const REQUIRES_CXX_DESTRUCT: bool;
+
+    type FIELDS;
+
+    const INSTANCE_START: usize;
+    const INSTANCE_SIZE: usize;
 
     // type CLASS_NAME_TYPE;  // [u8; N];
     // type CLASS_NAME_CSTR_TYPE;  // [u8; N];
     // const CLASS_NAME: CLASS_NAME_TYPE;
     // const CLASS_NAME_CSTR: CLASS_NAME_CSTR_TYPE;
-    // const IS_ROOT_CLASS: bool;
+
+    extern "C" fn cxx_construct(this: *mut Self, _: usize) -> *mut Self;
+    extern "C" fn cxx_destruct(this: *mut Self, _: usize);
   }
 
-  pub trait RootClass {}
+  pub unsafe trait RootClass: Class {}
 
-  pub trait NonRootClass {
+  pub unsafe trait NonRootClass: Class {
     type Super: Class + ?Sized;
   }
 }

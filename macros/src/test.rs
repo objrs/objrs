@@ -3,5 +3,3 @@
 // contents of this file may not be copied, modified, or distributed except according to those
 // terms. See the COPYRIGHT file at the top-level directory of this distribution for copies of these
 // licenses and more information.
-
-

@@ -9,21 +9,19 @@ extern crate objrs;
 use nsobject;
 use objrs::objrs;
 
-#[objrs(class = "NSArray", super = "nsobject::NSObject")]
+#[objrs(class, super = nsobject::NSObject)]
 #[link(name = "Foundation", kind = "framework")]
 pub struct NSArray<T: objrs::marker::Class + ?Sized>;
 
 #[objrs(impl)]
+#[link(name = "Foundation", kind = "framework")]
 impl<T: objrs::marker::Class + ?Sized> NSArray<T> {
   #[objrs(selector = "array")]
-  #[inline(never)] // TODO: this shouldn't be necessary, but it is for incremental compilation.
   pub fn array() -> objrs::Strong<Self> {}
 
   #[objrs(selector = "arrayByAddingObject:")]
-  #[inline(never)]
-  pub fn array_by_adding_object(&self, object: &T) -> objrs::Strong<Self> {}
+  pub fn array_by_adding_object(&self, object: objrs::Strong<T>) -> objrs::Strong<Self> {}
 
   #[objrs(selector = "firstObject")]
-  #[inline(never)]
   pub fn first_object<'a>(&'a self) -> Option<&'a T> {}
 }

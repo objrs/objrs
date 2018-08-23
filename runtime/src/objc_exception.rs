@@ -103,7 +103,9 @@ pub fn catch_exception<F: FnOnce() -> R, R>(f: F) -> Result<R, objc::id> {
     unsafe { core::ptr::write(ptr as *mut R, ret) };
   }
 
-  let mut function_and_ret = FunctionAndRet::<F, R> { f: f };
+  let mut function_and_ret = FunctionAndRet::<F, R> {
+    f: f,
+  };
   let mut exception = unsafe { core::mem::uninitialized() };
   if unsafe {
     __objrs_catch_exception(

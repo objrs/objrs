@@ -4,13 +4,35 @@
 # See the COPYRIGHT file at the top-level directory of this distribution for copies of these
 # licenses and more information.
 
+[workspace]
+members = [
+  ".",
+  "demo",
+  "frameworks/app_kit",
+  "frameworks/core_graphics",
+  "frameworks/foundation",
+  "frameworks/foundation/macros",
+  "frameworks/metal",
+  "frameworks/metal_kit",
+  "macros",
+  "runtime",
+  "test",
+]
+
 [package]
 name = "objrs"
-version = "0.0.0"
+version = "0.0.1"
 authors = ["Michael Bradshaw <mjbshaw@gmail.com>"]
 license = "Apache-2.0 OR MIT OR MPL-2.0"
 description = "Objective-Rust: the unholy union of Rust and Objective-C."
 repository = "https://gitlab.com/objrs/objrs"
+readme = "README.md"
+documentation = "https://gitlab.com/objrs/objrs/blob/master/DOCUMENTATION.md"
+keywords = ["objc", "objective-c"]
+categories = ["api-bindings", "development-tools::ffi", "external-ffi-bindings", "no-std", "os::macos-apis"]
+
+[badges]
+maintenance = { status = "experimental" }
 
 [lib]
 name = "objrs"
@@ -23,5 +45,5 @@ default = ["use_std"]
 
 [dependencies]
 libc = { version = "0.2", default-features = false }
-objrs_macros = { path = "macros", version = "0.0.0" }
-objrs_runtime = { path = "runtime", version = "0.0.0" }
+objrs_macros = { path = "macros", version = "0.0.1" }
+objrs_runtime = { path = "runtime", version = "0.0.1" }

@@ -6,10 +6,15 @@
 
 [package]
 name = "objrs_demo"
-version = "0.0.0"
+version = "0.0.1"
 authors = ["Michael Bradshaw <mjbshaw@gmail.com>"]
 license = "Apache-2.0 OR MIT OR MPL-2.0"
 description = "Demonstration of objrs."
+repository = "https://gitlab.com/objrs/objrs"
+readme = "README.md"
+
+[badges]
+maintenance = { status = "experimental" }
 
 [[bin]]
 name = "demo"
@@ -17,6 +22,9 @@ path = "src/main.rs"
 doc = false
 
 [dependencies]
-libc = { version = "0.2", default-features = false }
-objrs = { path = "..", version = "0.0.0" }
-objrs_frameworks_foundation = { path = "../frameworks/foundation", version = "0.0.0" }
+objrs = { path = "..", version = "0.0.1" }
+objrs_frameworks_app_kit = { path = "../frameworks/app_kit", version = "0.0.1" }
+objrs_frameworks_core_graphics = { path = "../frameworks/core_graphics", version = "0.0.1" }
+objrs_frameworks_foundation = { path = "../frameworks/foundation", version = "0.0.1" }
+objrs_frameworks_metal = { path = "../frameworks/metal", version = "0.0.1" }
+objrs_frameworks_metal_kit = { path = "../frameworks/metal_kit", version = "0.0.1" }

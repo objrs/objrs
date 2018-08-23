@@ -19,6 +19,7 @@ extern "C" {
 
   pub fn objc_retain(obj: objc::id) -> objc::id;
   pub fn objc_release(obj: objc::id);
+  pub fn objc_autorelease(obj: objc::id) -> objc::id;
   pub fn objc_retainAutorelease(obj: objc::id) -> objc::id;
 
   pub fn objc_loadWeakRetained(location: *mut objc::id) -> objc::id;
@@ -32,27 +33,25 @@ extern "C" {
 // }
 // I believe the return statement would result in the autoreleasepool not being popped.
 // This could possibly be fixed by using a gaurd variable with a Drop implementation that pops the pool, but I'm not sure that's foolproof.
-#[macro_export]
-macro_rules! autoreleasepool {
-  ($($tt: tt)*) => {
-    // Compiling the Objective-C program `int main() {@autoreleasepool{} return 0;}` shows that
-    // clang doesn't check the return value of the pool push. If clang never does it, then I feel
-    // comfortable not doing it here either (plus I've looked through the Objective-C runtime code
-    // and I don't think our lack of null-checking here can be problematic).
-    // TODO: does this need to be surrounded in {} for any reason?
-    let pool = unsafe { objc_autoreleasePoolPush() };
-    {$($tt)*;}
-    unsafe { objc_autoreleasePoolPop(pool) };
-  };
-}
+// #[macro_export]
+// macro_rules! autoreleasepool {
+//   ($($tt: tt)*) => {
+//     // Compiling the Objective-C program `int main() {@autoreleasepool{} return 0;}` shows that
+//     // clang doesn't check the return value of the pool push. If clang never does it, then I feel
+//     // comfortable not doing it here either (plus I've looked through the Objective-C runtime code
+//     // and I don't think our lack of null-checking here can be problematic).
+//     // TODO: does this need to be surrounded in {} for any reason?
+//     let pool = unsafe { objc_autoreleasePoolPush() };
+//     {$($tt)*;}
+//     unsafe { objc_autoreleasePoolPop(pool) };
+//   };
+// }
 
 // TODO: What happens to autoreleasepools when an exception is thrown (before the pool is popped)? How does Objective-C handle it, and does objrs match it?
-#[inline]
-pub fn autoreleasepool<F>(f: F)
-where
-  F: FnOnce(),
-{
-  autoreleasepool!{
-    f();
-  }
+// We only take Fn instead of FnOnce or FnMut in order to avoid allowing the user to accidentally create dangling references to autoreleased values.
+#[inline(always)]
+pub fn autoreleasepool<F: Fn()>(f: F) {
+  let pool = unsafe { objc_autoreleasePoolPush() };
+  f();
+  unsafe { objc_autoreleasePoolPop(pool) };
 }

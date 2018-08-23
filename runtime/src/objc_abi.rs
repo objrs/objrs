@@ -6,6 +6,19 @@
 
 // See https://github.com/opensource-apple/objc4/blob/master/runtime/objc-abi.h
 
+use objc_runtime_new;
+
+#[link(name = "objc")]
+extern "C" {
+  #[link_name = "_objc_empty_cache"]
+  pub static _objc_empty_cache: objc_runtime_new::bucket_t;
+
+  // These take a message::objc_super parameter instead of self.
+  pub fn objc_msgSendSuper2();
+  #[cfg(not(target_arch = "aarch64"))]
+  pub fn objc_msgSendSuper2_stret();
+}
+
 #[repr(C)]
 #[allow(non_camel_case_types)]
 pub struct objc_image_info {
@@ -13,10 +26,8 @@ pub struct objc_image_info {
   flags: u32,
 }
 
-const IS_IOS_SIMULATOR: bool = cfg!(all(
-  target_os = "ios",
-  any(target_arch = "x86", target_arch = "x86_64")
-));
+const IS_IOS_SIMULATOR: bool =
+  cfg!(all(target_os = "ios", any(target_arch = "x86", target_arch = "x86_64")));
 
 // For flag values, see:
 // https://github.com/apple-opensource/ld64/blob/master/src/other/objcimageinfo.cpp

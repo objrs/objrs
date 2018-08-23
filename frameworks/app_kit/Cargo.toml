@@ -1,0 +1,24 @@
+# The contents of this file is licensed by its authors and copyright holders under the Apache
+# License (Version 2.0), MIT license, or Mozilla Public License (Version 2.0), at your option. The
+# contents of this file may not be copied, modified, or distributed except according to those terms.
+# See the COPYRIGHT file at the top-level directory of this distribution for copies of these
+# licenses and more information.
+
+[package]
+name = "objrs_frameworks_app_kit"
+version = "0.0.1"
+authors = ["Michael Bradshaw <mjbshaw@gmail.com>"]
+license = "Apache-2.0 OR MIT OR MPL-2.0"
+description = "Bindings for Apple's AppKit framework."
+repository = "https://gitlab.com/objrs/objrs"
+readme = "README.md"
+keywords = ["objc", "objective-c", "appkit"]
+categories = ["api-bindings", "external-ffi-bindings", "no-std", "os::macos-apis"]
+
+[badges]
+maintenance = { status = "experimental" }
+
+[dependencies]
+objrs = { path = "../../", version = "0.0.1" }
+objrs_frameworks_core_graphics = { path = "../core_graphics", version = "0.0.1" }
+objrs_frameworks_foundation = { path = "../foundation", version = "0.0.1" }

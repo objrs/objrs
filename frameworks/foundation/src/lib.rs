@@ -4,20 +4,26 @@
 // terms. See the COPYRIGHT file at the top-level directory of this distribution for copies of these
 // licenses and more information.
 
-#![feature(extern_types, proc_macro, repr_transparent, used)]
+#![feature(extern_types, rust_2018_preview, used)]
 #![no_std]
 
 extern crate objrs;
 extern crate objrs_frameworks_foundation_macros;
 
 mod nsarray;
+mod nserror;
 mod nsmutable_string;
+mod nsnotification;
 mod nsobject;
+mod nsprocess_info;
 mod nsstring;
 
 pub use nsarray::*;
+pub use nserror::*;
 pub use nsmutable_string::*;
+pub use nsnotification::*;
 pub use nsobject::*;
+pub use nsprocess_info::*;
 pub use nsstring::*;
 
 #[doc(hidden)]

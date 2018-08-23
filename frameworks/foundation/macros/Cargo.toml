@@ -6,14 +6,15 @@
 
 [package]
 name = "objrs_frameworks_foundation_macros"
-version = "0.0.0"
+version = "0.0.1"
 authors = ["Michael Bradshaw <mjbshaw@gmail.com>"]
 license = "Apache-2.0 OR MIT OR MPL-2.0"
 description = "Macro magic for things like compile-time NSStrings."
 
 [dependencies]
-# TODO: use syn instead of literalext.
-literalext = { version = "0.2.0", default-features = false, features = ["proc-macro"] }
+proc-macro2 = { version = "0.4", features = ["nightly"] }
+quote = { version = "0.6" }
+syn = { version = "0.14" }
 
 [lib]
 proc-macro = true

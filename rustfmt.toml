@@ -5,3 +5,4 @@
 # licenses and more information.
 
 tab_spaces = 2
+use_small_heuristics = "Off"
