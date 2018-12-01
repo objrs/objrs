@@ -183,7 +183,9 @@ pub struct objc_class {
   pub isa: objc::Class,
   pub superclass: objc::Class,
   pub cache: cache_t,
-  pub bits: usize,
+  // This should be a usize (to match the C code), but due to Rust issue #54709, we have to use a
+  // pointer type.
+  pub bits: *const class_ro_t,
 }
 
 #[allow(non_camel_case_types)]

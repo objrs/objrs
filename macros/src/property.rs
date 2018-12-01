@@ -8,30 +8,32 @@ extern crate core;
 
 // For Objective-C property attributes, see https://github.com/llvm-mirror/clang/blob/master/lib/Parse/ParseObjc.cpp
 
+use proc_macro2::Span;
 use syn::{
-  alt, call, cond_reduce, custom_keyword, do_parse, named, option, parens, punct, syn,
-  synom::Synom, Ident, LitStr, Type,
+Ident, LitStr, Type,
 };
+use syn::parse::{Parse, ParseStream};
+use util;
 
 pub enum ReadWrite {
-  ReadOnly(Ident),
-  ReadWrite(Ident),
+  ReadOnly(Span),
+  ReadWrite(Span),
 }
 
 pub enum Nullability {
-  Nullable(Ident),
-  Nonnull(Ident),
-  Unspecified(Ident),
+  Nullable(Span),
+  Nonnull(Span),
+  Unspecified(Span),
 }
 
 pub enum WeakStrong {
-  Weak(Ident),
-  Strong(Ident),
+  Weak(Span),
+  Strong(Span),
 }
 
 pub enum Atomicity {
-  Atomic(Ident),
-  Nonatomic(Ident),
+  Atomic(Span),
+  Nonatomic(Span),
 }
 
 fn is_weak(weak_strong: &Option<WeakStrong>) -> bool {
@@ -44,13 +46,13 @@ fn is_weak(weak_strong: &Option<WeakStrong>) -> bool {
 pub struct PropertyAttr {
   pub name: Ident,
   pub ty: Type,
-  pub class: Option<Ident>,
+  pub class: Option<Span>,
   pub read_write: Option<ReadWrite>,
   pub nullability: Option<Nullability>,
   pub weak_strong: Option<WeakStrong>,
   pub atomicity: Option<Atomicity>,
-  pub retain: Option<Ident>,
-  pub null_resettable: Option<Ident>,
+  pub retain: Option<Span>,
+  pub null_resettable: Option<Span>,
   pub getter: Option<LitStr>,
   pub setter: Option<LitStr>,
 }
@@ -58,87 +60,140 @@ pub struct PropertyAttr {
 // Example: property(prop1: i32, readonly, nonatomic, getter = "foo").
 // TODO: weak, copy, retain, and strong all require an object type. This should be checked in a
 // post-parse validation step.
-impl Synom for PropertyAttr {
-  named!(parse -> Self, do_parse!(
-    custom_keyword!(property) >>
-    property: parens!(do_parse!(
-      name: syn!(Ident) >>
-      punct!(:) >>
-      ty: syn!(Type) >>
-      class: option!(do_parse!(punct!(,) >> value: custom_keyword!(class) >> (value))) >>
-      read_write: option!(do_parse!(
-        punct!(,) >>
-        value: alt!(
-          custom_keyword!(readonly) => { |ident| ReadWrite::ReadOnly(ident) }
-          |
-          custom_keyword!(readwrite) => { |ident| ReadWrite::ReadWrite(ident) }
-        ) >> (value)
-      )) >>
-      assign: option!(do_parse!(
-        punct!(,) >>
-        assign: custom_keyword!(assign) >>
-        (assign)
-      )) >>
-      unsafe_unretained: option!(do_parse!(
-        punct!(,) >>
-        unsafe_unretained: custom_keyword!(unsafe_unretained) >>
-        (unsafe_unretained)
-      )) >>
-      copy: option!(cond_reduce!(assign.is_none() && unsafe_unretained.is_none(), do_parse!(
-        punct!(,) >>
-        value: custom_keyword!(copy) >>
-        (value)
-      ))) >>
-      weak_strong: option!(cond_reduce!(assign.is_none() && unsafe_unretained.is_none() && copy.is_none(), do_parse!(
-        punct!(,) >>
-        value: alt!(
-          custom_keyword!(weak) => { |ident| WeakStrong::Weak(ident) }
-          |
-          custom_keyword!(strong) => { |ident| WeakStrong::Strong(ident) }
-        ) >> (value)
-      ))) >>
-      retain: option!(cond_reduce!(assign.is_none() && unsafe_unretained.is_none() && copy.is_none() && !is_weak(&weak_strong), do_parse!(
-        punct!(,) >>
-        value: custom_keyword!(retain) >>
-        (value)
-      ))) >>
-      nullability: option!(do_parse!(
-        punct!(,) >>
-        value: alt!(
-          custom_keyword!(nullable) => { |ident| Nullability::Nullable(ident) }
-          |
-          cond_reduce!(!is_weak(&weak_strong), custom_keyword!(nonnull)) => { |ident| Nullability::Nonnull(ident) }
-          |
-          custom_keyword!(null_unspecified) => { |ident| Nullability::Unspecified(ident) }
-        ) >> (value)
-      )) >>
-      atomicity: option!(do_parse!(
-        punct!(,) >>
-        value: alt!(
-          custom_keyword!(atomic) => { |ident| Atomicity::Atomic(ident) }
-          |
-          custom_keyword!(nonatomic) => { |ident| Atomicity::Nonatomic(ident) }
-        ) >> (value)
-      )) >>
-      null_resettable: option!(do_parse!(
-        punct!(,) >>
-        value: custom_keyword!(null_resettable) >>
-        (value)
-      )) >>
-      getter: option!(do_parse!(
-        punct!(,) >>
-        custom_keyword!(getter) >> punct!(=) >>
-        selector: syn!(LitStr) >>
-        (selector)
-      )) >>
-      setter: option!(do_parse!(
-        punct!(,) >>
-        custom_keyword!(setter) >> punct!(=) >>
-        selector: syn!(LitStr) >>
-        (selector)
-      )) >>
-      option!(punct!(,)) >>
-      (PropertyAttr {
+impl Parse for PropertyAttr {
+  fn parse(input: ParseStream) -> syn::parse::Result<Self> {
+    use syn::token::{Comma, Paren, Colon};
+    use syn::parenthesized;
+    use util::{KV, class,
+    readonly, readwrite, assign, unsafe_unretained, copy, weak, strong, retain, nullable, nonnull, null_unspecified, atomic, nonatomic, null_resettable, getter, setter};
+
+    let content;
+    let _: Paren = parenthesized!(content in input);
+    let input = &content;
+
+    let name: Ident = input.parse()?;
+    let _: Colon = input.parse()?;
+    let ty: Type = input.parse()?;
+
+    if input.is_empty() {
+      return Ok(PropertyAttr {
+        name: name,
+        ty: ty,
+        class: None,
+        read_write: None,
+        nullability: None,
+        weak_strong: None,
+        atomicity: None,
+        retain: None,
+        null_resettable: None,
+        getter: None,
+        setter: None,
+      });
+    }
+
+    let _: Comma = input.parse()?;
+
+    let mut kv = KV::new(input);
+    
+    let class: Option<Span> = kv.parse::<class, _>()?;
+
+    // use util::OptionExt;
+    // let read_write = kv.parse::<readonly, Option<Span>>()?.map(ReadWrite::ReadOnly)
+    //   .or_else_parse(|| kv.parse::<readwrite, _>().map(ReadWrite::ReadWrite))?;
+    let readonly: Option<Span> = kv.parse::<readonly, _>()?;
+    let readwrite: Option<Span> = if readonly.is_some() { None } else { kv.parse::<readwrite, _>()? };
+    let read_write = readonly.map(ReadWrite::ReadOnly).or(readwrite.map(ReadWrite::ReadWrite));
+
+    // let readonly: Option<Span> = kv.parse::<readonly, _>()?;
+    // let readwrite: Option<Span> = if readonly.is_some() { None } else { kv.parse::<readwrite, _>()? };
+    // let read_write;
+    // if let Some(span) = readonly {
+    //   readwrite = Some(ReadWrite::ReadOnly(span));
+    // } else if let Some(span) = readwrite {
+    //   readwrite = Some(ReadWrite::ReadWrite(span));
+    // } else {
+    //   read_write = None;
+    // }
+
+    let assign: Option<Span> = kv.parse::<assign, _>()?;
+    
+    let unsafe_unretained: Option<Span> = kv.parse::<unsafe_unretained, _>()?;
+
+    let copy: Option<Span>;
+    if assign.is_none() && unsafe_unretained.is_none() {
+      copy = kv.parse::<copy, _>()?;
+    } else {
+      copy = None;
+    }
+
+    let weak_strong;
+    if assign.is_none() && unsafe_unretained.is_none() && copy.is_none() {
+      let weak: Option<Span> = kv.parse::<weak, _>()?;
+      let strong: Option<Span> = if weak.is_some() { None } else { kv.parse::<strong, _>()? };
+      weak_strong = weak.map(WeakStrong::Weak).or(strong.map(WeakStrong::Strong));
+      // if weak.is_some() {
+      //   weak_strong = Some(WeakStrong::Weak(ident));
+      // } else if strong.is_some() {
+      //   weak_strong = Some(WeakStrong::Strong(ident));
+      // } else {
+      //   weak_strong = None;
+      // }
+    } else {
+      weak_strong = None;
+    }
+
+    let retain: Option<Span>;
+    if assign.is_none() && unsafe_unretained.is_none() && copy.is_none() && !is_weak(&weak_strong) {
+      retain = kv.parse::<retain, _>()?;
+    } else {
+      retain = None;
+    }
+
+    let nullable: Option<Span> = kv.parse::<nullable, _>()?;
+    let nonnull: Option<Span>;
+    if nullable.is_none() && !is_weak(&weak_strong) {
+      nonnull = kv.parse::<nonnull, _>()?;
+    } else {
+      nonnull = None;
+    }
+    let null_unspecified: Option<Span>;
+    if nullable.is_none() && nonnull.is_none() {
+      null_unspecified = kv.parse::<null_unspecified, _>()?;
+    } else {
+      null_unspecified = None;
+    }
+    let nullability = nullable.map(Nullability::Nullable)
+      .or(nonnull.map(Nullability::Nonnull))
+      .or(null_unspecified.map(Nullability::Unspecified));
+    // if nullable.is_some() {
+    //   nullability = Some(Nullability::Nullable(ident));
+    // } else if nonnull.is_some() {
+    //   nullability = Some(Nullability::Nonnull(ident));
+    // } else if null_unspecified.is_some()() {
+    //   nullability = Some(Nullability::Unspecified(ident));
+    // } else {
+    //   nullability = None;
+    // }
+
+    let atomic: Option<Span> = kv.parse::<atomic, _>()?;
+    let nonatomic: Option<Span> = if atomic.is_some() { None } else { kv.parse::<nonatomic, _>()? };
+    let atomicity = atomic.map(Atomicity::Atomic).or(nonatomic.map(Atomicity::Nonatomic));
+    // if atomic.is_some() {
+    //   atomicity = Some(Atomicity::Atomic(ident));
+    // } else if nonatomic.is_some() {
+    //   atomicity = Some(Atomicity::Nonatomic(ident));
+    // } else {
+    //   atomicity = None;
+    // }
+
+    let null_resettable: Option<Span> = kv.parse::<null_resettable, _>()?;
+
+    let getter: Option<LitStr> = kv.parse::<getter, _>()?;
+    let setter: Option<LitStr> = kv.parse::<setter, _>()?;
+
+    kv.eof()?;
+    return Ok(
+      PropertyAttr {
         name: name,
         ty: ty,
         class: class,
@@ -150,14 +205,18 @@ impl Synom for PropertyAttr {
         null_resettable: null_resettable,
         getter: getter,
         setter: setter,
-      })
-    )) >> (
-      property.1
-    )
-  ));
+      }
+    );
+  }
+}
 
-  fn description() -> Option<&'static str> {
-    return Some("objrs property attribute");
+impl util::Value for PropertyAttr {
+  fn parse(input: ParseStream, _: Span) -> syn::parse::Result<Self> where Self: Sized {
+    use syn::parenthesized;
+
+    let content;
+    let _: syn::token::Paren = parenthesized!(content in input);
+    return content.parse();
   }
 }
 

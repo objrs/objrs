@@ -4,7 +4,7 @@
 // terms. See the COPYRIGHT file at the top-level directory of this distribution for copies of these
 // licenses and more information.
 
-#![feature(arbitrary_self_types, extern_types, rust_2018_preview, used)]
+#![feature(arbitrary_self_types, extern_types, rust_2018_preview)]
 #![no_std]
 
 extern crate libc;

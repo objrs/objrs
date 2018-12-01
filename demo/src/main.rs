@@ -4,7 +4,7 @@
 // terms. See the COPYRIGHT file at the top-level directory of this distribution for copies of these
 // licenses and more information.
 
-#![feature(used, rust_2018_preview, proc_macro_non_items,)]
+#![feature(rust_2018_preview, proc_macro_hygiene,)]
 
 extern crate core;
 extern crate objrs;

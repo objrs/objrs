@@ -6,7 +6,7 @@
 
 // TODO: Use span's resolved_at/located_at to use def_site() span with line/column information of user code.
 
-#![feature(proc_macro_diagnostic, proc_macro_span)]
+#![feature(proc_macro_diagnostic, proc_macro_span, proc_macro_def_site)]
 #![recursion_limit = "512"]
 
 extern crate core;
@@ -19,13 +19,11 @@ extern crate syn;
 use class::{parse_class, ClassAttr};
 use class_impl::{parse_impl, ImplAttr};
 use proc_macro::Diagnostic;
-use proc_macro2::TokenStream;
+use proc_macro2::{Span, TokenStream};
 use protocol::{parse_protocol, ProtocolAttr};
 use quote::quote;
-use syn::{
-  alt, buffer::Cursor, buffer::TokenBuffer, call, custom_keyword, do_parse, named, syn,
-  synom::PResult, synom::Synom,
-};
+use syn::parse2;
+use syn::parse::{ParseStream, Parse};
 
 mod class;
 mod class_impl;
@@ -37,67 +35,54 @@ mod selector;
 mod test;
 mod util;
 
-fn consume_all_tokens(_: Cursor) -> PResult<()> {
-  return Ok(((), Cursor::empty()));
-}
-
 enum ObjrsAttr {
   Impl(ImplAttr),
   Class(ClassAttr),
   Protocol(ProtocolAttr),
-  Selector,
-  Ivar,
+  Selector(Span),
+  Ivar(Span),
 }
 
-impl Synom for ObjrsAttr {
-  named!(parse -> Self, do_parse!(
-    attr: alt!(
-      syn!(ImplAttr) =>  { ObjrsAttr::Impl }
-      |
-      syn!(ClassAttr) =>  { ObjrsAttr::Class }
-      |
-      syn!(ProtocolAttr) =>  { ObjrsAttr::Protocol }
-      |
-      do_parse!(custom_keyword!(selector) >> call!(consume_all_tokens) >> ()) =>  { |_| ObjrsAttr::Selector }
-      |
-      do_parse!(custom_keyword!(ivar) >> call!(consume_all_tokens) >> ()) =>  { |_| ObjrsAttr::Ivar }
-    ) >> (attr)
-  ));
+impl Parse for ObjrsAttr {
+  fn parse(input: ParseStream) -> syn::parse::Result<Self> {
+    use syn::token::Impl;
+    use util::{ivar, selector, class, protocol};
 
-  fn description() -> Option<&'static str> {
-    return Some("objrs attribute");
+    let lookahead = input.lookahead1();
+    if lookahead.peek(Impl) {
+      return input.parse().map(ObjrsAttr::Impl);
+    } else if lookahead.peek(class) {
+      return input.parse().map(ObjrsAttr::Class);
+    } else if lookahead.peek(protocol) {
+      return input.parse().map(ObjrsAttr::Protocol);
+    } else if lookahead.peek(selector) {
+      return Ok(ObjrsAttr::Selector(input.cursor().span()));
+    } else if lookahead.peek(ivar) {
+      return Ok(ObjrsAttr::Ivar(input.cursor().span()));
+    }
+    return Err(lookahead.error());
   }
 }
 
-fn parse<T: Synom>(cursor: Cursor) -> Result<T, Diagnostic> {
-  let (value, cursor) =
-    <T as Synom>::parse(cursor).map_err(|err| cursor.span().unstable().error(err.to_string()))?;
-  if cursor.eof() {
-    return Ok(value);
-  } else {
-    return Err(cursor.span().unstable().error("tokens were not parsed"));
-  }
+fn to_diagnostic(err: syn::parse::Error) -> Diagnostic {
+  return err.span().unstable().error(err.to_string());
 }
 
 fn shim(args: TokenStream, input: TokenStream) -> Result<TokenStream, Diagnostic> {
-  let args_buffer = TokenBuffer::new2(args);
-  let cursor = args_buffer.begin();
-  match parse(cursor)? {
+  match parse2(args).map_err(to_diagnostic)? {
     ObjrsAttr::Impl(attr) => return parse_impl(attr, input),
     ObjrsAttr::Class(attr) => return parse_class(attr, input),
     ObjrsAttr::Protocol(attr) => return parse_protocol(attr, input),
-    ObjrsAttr::Selector => {
+    ObjrsAttr::Selector(span) => {
       return Err(
-        cursor
-          .span()
+        span
           .unstable()
           .error("attribute must be enclosed in an impl block with a #[objrs(impl)] attribute"),
       )
     }
-    ObjrsAttr::Ivar => {
+    ObjrsAttr::Ivar(span) => {
       return Err(
-        cursor
-          .span()
+        span
           .unstable()
           .error("attribute must be enclosed in a struct item with a #[objrs(class)] attribute"),
       )

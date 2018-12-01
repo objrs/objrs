@@ -16,10 +16,12 @@ use proc_macro2::{Span, TokenStream};
 use quote::quote;
 use selector::{parse_selector_method, ObjrsMethod};
 use syn::{
-  alt, buffer::TokenBuffer, call, custom_keyword, do_parse, keyword, named, option, punct,
-  spanned::Spanned, syn, synom::Synom, Attribute, FnArg, ImplItem, ImplItemMethod, ItemImpl,
+ parse2,
+ Attribute, FnArg, ImplItem, ImplItemMethod, ItemImpl,
   LitByteStr, LitStr, ReturnType, Type,
 };
+use syn::spanned::Spanned;
+use syn::parse::{Parse, ParseStream};
 use util::{is_instance_method, link_attribute, priv_ident};
 
 pub struct ImplAttr {
@@ -39,30 +41,24 @@ pub struct ImplAttr {
 //         [, class_name = "ExportName",]
 //         [, category_name = "ExportName",]
 //         [, extern][,])]
-impl Synom for ImplAttr {
-  named!(parse -> Self, do_parse!(
-    keyword!(impl) >>
-    name: option!(do_parse!(punct!(,) >> custom_keyword!(class_name) >> punct!(=) >> name: syn!(LitStr) >> (name))) >>
-    trait_name: option!(do_parse!(
-      punct!(,) >>
-      trait_name: alt!(
-        do_parse!(custom_keyword!(protocol_name) >> punct!(=) >> name: syn!(LitStr) >> (name))
-        |
-        do_parse!(custom_keyword!(category_name) >> punct!(=) >> name: syn!(LitStr) >> (name))
-      ) >>
-      (trait_name)
-    )) >>
-    force_extern: option!(do_parse!(punct!(,) >> keyword!(extern) >> (()))) >>
-    option!(punct!(,)) >>
-    (ImplAttr {
-      class_name: name,
-      trait_name: trait_name,
-      force_extern: force_extern.is_some(),
-    })
-  ));
+impl Parse for ImplAttr {
+  fn parse(input: ParseStream) -> syn::parse::Result<Self> {
+    use syn::token::{Extern, Impl};
+    use util::{KV, class_name, category_name, protocol_name};
 
-  fn description() -> Option<&'static str> {
-    return Some("objrs impl attribute");
+    let mut kv = KV::new(input);
+    kv.parse::<Impl, _>()?;
+    let class_name: Option<LitStr> = kv.parse::<class_name, _>()?;
+    let trait_name: Option<LitStr> = kv.parse_one_of::<(protocol_name, category_name), _>()?;
+    let force_extern: Option<()> = kv.parse::<Extern, _>()?;
+    kv.eof()?;
+    return Ok(
+      ImplAttr {
+        class_name: class_name,
+        trait_name: trait_name,
+        force_extern: force_extern.is_some(),
+      }
+    );
   }
 }
 
@@ -704,14 +700,12 @@ fn parse_class_name(ty: &Type) -> Result<LitStr, Diagnostic> {
 }
 
 pub fn parse_impl(attr: ImplAttr, input: TokenStream) -> Result<TokenStream, Diagnostic> {
-  let input = TokenBuffer::new2(input);
-  let mut item = match <ItemImpl as Synom>::parse(input.begin()) {
-    Ok((item_impl, _)) => item_impl,
+  let mut item;
+  match parse2::<ItemImpl>(input) {
+    Ok(value) => item = value,
     Err(error) => {
       return Err(
-        input
-          .begin()
-          .token_stream()
+        error
           .span()
           .unstable()
           .error(format!("failed to parse impl item: {}", error.to_string()))

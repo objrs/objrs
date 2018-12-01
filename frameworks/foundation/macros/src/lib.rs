@@ -4,7 +4,7 @@
 // terms. See the COPYRIGHT file at the top-level directory of this distribution for copies of these
 // licenses and more information.
 
-#![feature(proc_macro_diagnostic, proc_macro_non_items)]
+#![feature(proc_macro_diagnostic)]
 #![recursion_limit = "128"]
 
 extern crate core;

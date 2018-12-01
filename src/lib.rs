@@ -4,7 +4,7 @@
 // terms. See the COPYRIGHT file at the top-level directory of this distribution for copies of these
 // licenses and more information.
 
-#![feature(extern_types, specialization)]
+#![feature(const_needs_drop, extern_types, specialization)]
 #![no_std]
 
 pub mod marker;
@@ -654,15 +654,27 @@ pub mod __objrs {
     const VALUE: bool = true;
   }
 
+  pub trait NeedsDrop {
+    const VALUE: bool;
+  }
+
+  impl<T: ?Sized> NeedsDrop for T {
+    default const VALUE: bool = true;
+  }
+
+  impl<T> NeedsDrop for T {
+    const VALUE: bool = core::mem::needs_drop::<T>();
+  }
+
   pub trait RequiresCxxDestruct {
     const VALUE: bool;
   }
 
-  impl<T: ?Sized + IsCopy> RequiresCxxDestruct for T {
-    default const VALUE: bool = !<T as IsCopy>::VALUE;
+  impl<T: ?Sized + NeedsDrop + IsCopy> RequiresCxxDestruct for T {
+    default const VALUE: bool = <T as NeedsDrop>::VALUE && !<T as IsCopy>::VALUE;
   }
 
-  impl<T: ?Sized + IsCopy + marker::Forgettable> RequiresCxxDestruct for T {
+  impl<T: ?Sized + NeedsDrop + IsCopy + marker::Forgettable> RequiresCxxDestruct for T {
     const VALUE: bool = false;
   }
 

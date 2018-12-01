@@ -69,8 +69,6 @@ L_OBJC_IMAGE_INFO:
 We can generate (approximately) the same assembly using the following Rust code:
 
 ```rust
-#![feature(used)]
-
 extern crate core;
 
 #[link(name = "c")]

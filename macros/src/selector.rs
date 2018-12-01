@@ -16,18 +16,19 @@ use proc_macro::Diagnostic;
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens};
 use syn::{
-  alt, call, custom_keyword, do_parse, keyword, named, option, parens, parse2, parse_quote, punct,
-  punctuated::Punctuated, spanned::Spanned, syn, synom::Synom, token::Comma, token::Extern, Abi,
+ parse2, parse_quote,
+  punctuated::Punctuated, spanned::Spanned, token::Comma, token::Extern, Abi,
   Attribute, Expr, ExprVerbatim, FnArg, GenericParam, Ident, ImplItemMethod, ImplItemVerbatim,
   LitByteStr, LitStr, MethodSig, Pat, PatIdent, ReturnType, Stmt, Type,
 };
+use syn::parse::{Parse, ParseStream};
 use util::{is_instance_method, plural_s, priv_ident_at, DrainExt};
 
 pub struct SelectorAttr {
   pub sel: LitStr,
   pub call_super: bool,
   pub no_impl: bool,
-  pub optional: Option<Ident>,
+  pub optional: Option<Span>,
   pub method_type: MethodType,
 }
 
@@ -43,37 +44,40 @@ pub enum MethodType {
 //         [, class|instance]
 //         [, optional]
 //         [,])]
-impl Synom for SelectorAttr {
-  named!(parse -> Self, do_parse!(
-    group: parens!(do_parse!(
-      custom_keyword!(selector) >>
-      punct!(=) >>
-      sel: syn!(LitStr) >>
-      impl_type: option!(do_parse!(punct!(,) >> instance: alt!(
-        keyword!(super) => { |_| (true) }
-        |
-        custom_keyword!(no_impl) => { |_| (false) }) >> (instance))
-      ) >>
-      method_type: option!(do_parse!(punct!(,) >> instance: alt!(
-        custom_keyword!(class) => { |_| MethodType::Class }
-        |
-        custom_keyword!(instance) => { |_| MethodType::Instance }) >> (instance))
-      ) >>
-      optional: option!(do_parse!(punct!(,) >> value: custom_keyword!(optional) >> (value))
-      ) >> option!(punct!(,)) >>
-      (SelectorAttr {
-        sel: sel,
-        call_super: impl_type.unwrap_or(false),
-        no_impl: impl_type.is_some(),
-        optional: optional,
-        method_type: method_type.unwrap_or(MethodType::Auto),
-      })
-    )) >>
-    (group.1)
-  ));
+impl Parse for SelectorAttr {
+  fn parse(input: ParseStream) -> syn::parse::Result<Self> {
+    use syn::parenthesized;
+    use util::{KV, selector, no_impl, class, instance, optional};
 
-  fn description() -> Option<&'static str> {
-    return Some("objrs selector attribute");
+    let content;
+    let _: syn::token::Paren = parenthesized!(content in input);
+    let input = &content;
+
+    let mut kv = KV::new(input);
+    let sel: LitStr = kv.parse::<selector, _>()?;
+    let call_super: Option<()> = kv.parse::<syn::token::Super, _>()?;
+    let no_impl: Option<()> = if call_super.is_some() { None } else { kv.parse::<no_impl, _>()? };
+    let class: Option<()> = kv.parse::<class, _>()?;
+    let instance: Option<()> = if class.is_some() { None } else { kv.parse::<instance, _>()? };
+    let optional: Option<Span> = kv.parse::<optional, _>()?;
+    let method_type;
+    if class.is_some() {
+      method_type = MethodType::Class;
+    } else if instance.is_some() {
+      method_type = MethodType::Instance;
+    } else {
+      method_type = MethodType::Auto;
+    }
+    kv.eof()?;
+    return Ok(
+      SelectorAttr {
+        sel: sel,
+        call_super: call_super.is_some(),
+        no_impl: no_impl.is_some(),
+        optional: optional,
+        method_type: method_type,
+      }
+    );
   }
 }
 
@@ -255,7 +259,6 @@ pub fn parse_selector_method(
   if let Some(optional) = selector_attr.optional {
     return Err(
       optional
-        .span()
         .unstable()
         .error("`optional` mut not be used outside of a protocol trait definition")
         .note("objrs only allows `optional` on methods inside of #[objrs(protocol)] items"),

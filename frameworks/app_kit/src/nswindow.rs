@@ -7,7 +7,7 @@
 use nsresponder::NSResponder;
 use nsview_controller::NSViewController;
 use objrs::objrs;
-use objrs_frameworks_core_graphics::CGPoint;
+use objrs_frameworks_core_graphics::{CGFloat, CGPoint};
 use objrs_frameworks_foundation::NSString;
 
 #[objrs(class, super = NSResponder)]
@@ -31,4 +31,7 @@ impl NSWindow {
 
   #[objrs(selector = "mouseLocationOutsideOfEventStream")]
   pub fn mouse_location_outside_of_event_stream(&self) -> CGPoint {}
+
+  #[objrs(selector = "backingScaleFactor")]
+  pub fn backing_scale_factor(&self) -> CGFloat {}
 }

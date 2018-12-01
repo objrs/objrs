@@ -205,7 +205,13 @@ impl MTKViewDelegate for Renderer {
       .expect("Failed to get a command buffer from the command queue");
 
     {
-      let pos = view.window().mouse_location_outside_of_event_stream();
+      let scale_factor;
+      let pos;
+      {
+        let window = view.window();
+        scale_factor = 2.0 * window.backing_scale_factor();
+        pos = window.mouse_location_outside_of_event_stream();
+      }
 
       let render_pass_descriptor;
       match view.current_render_pass_descriptor() {
@@ -244,8 +250,8 @@ impl MTKViewDelegate for Renderer {
         }
 
         let mouse_pos: [f32; 2] = [
-          (2.0 * pos.x as f32 - drawable_size[0]) / (drawable_size[0] * viewport_scale[0]),
-          (2.0 * pos.y as f32 - drawable_size[1]) / (drawable_size[1] * viewport_scale[1]),
+          ((scale_factor * pos.x) as f32 - drawable_size[0]) / (drawable_size[0] * viewport_scale[0]),
+          ((scale_factor * pos.y) as f32 - drawable_size[1]) / (drawable_size[1] * viewport_scale[1]),
         ];
 
         let vertex_uniforms = VertexUniforms {

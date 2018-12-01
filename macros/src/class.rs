@@ -14,11 +14,12 @@ use proc_macro::Diagnostic;
 use proc_macro2::{Literal, Span, TokenStream, TokenTree};
 use quote::{quote, quote_spanned, ToTokens};
 use syn::{
-  alt, buffer::TokenBuffer, call, custom_keyword, do_parse, keyword, named, option, parens, parse2,
-  parse_quote, punct, punctuated::Punctuated, spanned::Spanned, syn, synom::Synom, token::Comma,
+parse2,
+  parse_quote, punctuated::Punctuated, spanned::Spanned, token::Comma,
   Attribute, Field, Fields, GenericParam, Ident, ItemStruct, LitByteStr, LitStr, Type, TypePath,
   Visibility,
 };
+use syn::parse::{Parse, ParseStream};
 use util;
 use util::{link_attribute, priv_ident_at, DrainExt};
 
@@ -28,6 +29,43 @@ pub struct ClassAttr {
   super_class: Option<TypePath>,
   force_extern: bool,
   root_class_name: Option<LitStr>, // Only needed due to the lack of associated extern statics.
+}
+
+struct SuperAttr {
+  name: Option<LitStr>,
+  class: TypePath,
+}
+
+impl util::Value for SuperAttr {
+  fn parse(input: ParseStream, _: Span) -> syn::parse::Result<Self> where Self: Sized {
+    use syn::token::{Paren, Type, Eq};
+    use syn::parenthesized;
+    use util::{KV, name};
+
+    let lookahead = input.lookahead1();
+    if lookahead.peek(Eq) {
+      let _: Eq = input.parse()?;
+      let class: TypePath = input.parse()?;
+      return Ok(SuperAttr {
+        name: None,
+        class: class,
+      });
+    } else if lookahead.peek(Paren) {
+      let content;
+      let _: Paren = parenthesized!(content in input);
+      let input = &content;
+      let mut kv = KV::new(input);
+      let name: LitStr = kv.parse::<name, _>()?;
+      let class: TypePath = kv.parse::<Type, _>()?;
+      kv.eof()?;
+      return Ok(SuperAttr {
+        name: Some(name),
+        class: class,
+      });
+    } else {
+      return Err(lookahead.error());
+    }
+  }
 }
 
 // #[objrs(class,
@@ -45,38 +83,34 @@ pub struct ClassAttr {
 //               type = NSObject[,])
 //         [, root_class = "ExportName"]
 //         [, extern][,])]
-impl Synom for ClassAttr {
-  named!(parse -> Self, do_parse!(
-    custom_keyword!(class) >>
-    punct!(,) >>
-    name: option!(do_parse!(custom_keyword!(name) >> punct!(=) >> name: syn!(LitStr) >> (name))) >>
-    super_info: alt!(
-      do_parse!(keyword!(super) >>
-        super_class: alt!(
-          do_parse!(punct!(=) >> super_ty: syn!(TypePath) >> ((None, super_ty)))
-          |
-          parens!(do_parse!(custom_keyword!(name) >> punct!(=) >> super_name: syn!(LitStr) >> punct!(,) >>
-                            keyword!(type) >> punct!(=) >> super_ty: syn!(TypePath) >> option!(punct!(,)) >>
-                            (Some(super_name), super_ty))) => { |group| group.1 }
-        ) >> root_class: option!(do_parse!(custom_keyword!(root_class) >> punct!(=) >> root_name: syn!(LitStr) >> (root_name)))
-        >> ((super_class.0, Some(super_class.1), root_class))
-      )
-      |
-      custom_keyword!(root_class) => { |_| (None, None, None) }
-      ) >>
-    force_extern: option!(do_parse!(punct!(,) >> keyword!(extern) >> (()))) >>
-    option!(punct!(,)) >>
-    (ClassAttr {
-      class_name: name,
-      super_class_name: super_info.0,
-      super_class: super_info.1,
-      force_extern: force_extern.is_some(),
-      root_class_name: super_info.2,
-    })
-  ));
+impl Parse for ClassAttr {
+  fn parse(input: ParseStream) -> syn::parse::Result<Self> {
+    use util::{KV, class, name, root_class};
 
-  fn description() -> Option<&'static str> {
-    return Some("objrs class attribute");
+    let mut kv = KV::new(input);
+    kv.parse::<class, _>()?;
+    let class_name: Option<LitStr> = kv.parse::<name, _>()?;
+    let root_class: Option<()> = kv.parse::<root_class, _>()?;
+    let super_class: Option<SuperAttr> = if root_class.is_some() { None } else { kv.parse::<syn::token::Super, _>()? };
+    let (super_class_name, super_class) = super_class.map_or((None, None), |s| (s.name, Some(s.class)));
+    kv.barrier()?;
+    let root_class_name: Option<LitStr>;
+    if root_class.is_some() {
+      root_class_name = None;
+    } else {
+      root_class_name = kv.parse::<root_class, _>()?;
+    }
+    let force_extern: Option<()> = kv.parse::<syn::token::Extern, _>()?;
+    kv.eof()?;
+    return Ok(
+      ClassAttr {
+        class_name: class_name,
+        super_class_name: super_class_name,
+        super_class: super_class,
+        force_extern: force_extern.is_some(),
+        root_class_name: root_class_name,
+      }
+    );
   }
 }
 
@@ -131,14 +165,12 @@ fn parse_ivar(field: &mut Field, force_extern: bool) -> Result<IvarAttr, Diagnos
 }
 
 pub fn parse_class(attr: ClassAttr, input: TokenStream) -> Result<TokenStream, Diagnostic> {
-  let input = TokenBuffer::new2(input);
-  let mut item = match <ItemStruct as Synom>::parse(input.begin()) {
-    Ok((st, _)) => st,
+  let mut item;
+  match parse2::<ItemStruct>(input) { // ItemStruct
+    Ok(value) => item = value,
     Err(error) => {
       return Err(
-        input
-          .begin()
-          .token_stream()
+        error
           .span()
           .unstable()
           .error(format!("failed to parse struct: {}", error.to_string()))
@@ -323,6 +355,7 @@ pub fn parse_class(attr: ClassAttr, input: TokenStream) -> Result<TokenStream, D
       // TODO: support generics.
       // This is equivalent to the C code `(size_t)&((T *)0)->field`. This is UB in Rust since it
       // creates a null reference, but I haven't been able to come up with a non-UB alternative.
+      // TODO: do something like https://internals.rust-lang.org/t/discussion-on-offset-of/7440 to avoid going through a deref.
       static IVAR_OFFSET: usize = <#pub_ident as __objrs_root::runtime::__objrs::Class>::INSTANCE_START + unsafe { __objrs_root::__objrs::TransmuteHack::<_, usize> { from: &__objrs_root::__objrs::TransmuteHack::<usize, &#original_item_ident> { from: 0 }.to.#field_ident }.to };
       &IVAR_OFFSET as *const _ as *mut _
     }};

@@ -15,17 +15,18 @@ use quote::{quote, ToTokens};
 use selector::{parse_selector, MethodType, SelectorAttr};
 use std::collections::HashSet;
 use syn::{
-  buffer::TokenBuffer, call, custom_keyword, do_parse, keyword, named, option, parse2, parse_quote,
-  punct, punctuated::Punctuated, spanned::Spanned, syn, synom::Synom, token::Brace, token::Comma,
+parse2, parse_quote,
+punctuated::Punctuated, spanned::Spanned,
   token::Extern, Abi, Attribute, Block, GenericParam, Ident, ImplItemMethod, ItemTrait, LitStr,
   TraitItem, TraitItemMethod, Visibility,
 };
+use syn::parse::{Parse, ParseStream};
 use util::{is_instance_method, link_attribute, DrainExt};
 
 pub struct ProtocolAttr {
   pub name: Option<LitStr>,
   pub id_ident: Ident,
-  pub properties: Punctuated<PropertyAttr, Comma>,
+  pub properties: Vec<PropertyAttr>,
   pub force_extern: bool,
 }
 
@@ -34,24 +35,28 @@ pub struct ProtocolAttr {
 //         ,id_ident = IDENT
 //         [,property(...)]
 //         [,extern][,])]
-impl Synom for ProtocolAttr {
-  named!(parse -> Self, do_parse!(
-    custom_keyword!(protocol) >>
-    name: option!(do_parse!(punct!(,) >> custom_keyword!(name) >> punct!(=) >> name: syn!(LitStr) >> (name))) >>
-    id_ident: do_parse!(punct!(,) >> custom_keyword!(id_ident) >> punct!(=) >> id_ident: syn!(Ident) >> (id_ident)) >>
-    properties: option!(do_parse!(punct!(,) >> properties: call!(Punctuated::parse_separated) >> (properties))) >>
-    force_extern: option!(do_parse!(punct!(,) >> keyword!(extern) >> (()))) >>
-    option!(punct!(,)) >>
-    (ProtocolAttr {
-      name: name,
-      id_ident: id_ident,
-      properties: properties.unwrap_or_else(Punctuated::new),
-      force_extern: force_extern.is_some(),
-    })
-  ));
+impl Parse for ProtocolAttr {
+  fn parse(input: ParseStream) -> syn::parse::Result<Self> {
+    use util::{KV, id_ident, property, name, protocol};
 
-  fn description() -> Option<&'static str> {
-    return Some("objrs protocol attribute");
+    let mut kv = KV::new(input);
+    kv.parse::<protocol, _>()?;
+    let name: Option<LitStr> = kv.parse::<name, _>()?;
+    let id_ident: Ident = kv.parse::<id_ident, _>()?;
+    let mut properties = vec![];
+    while let Some(property) = kv.parse::<property, _>()? {
+      properties.push(property);
+    }
+    let force_extern: Option<()> = kv.parse::<Extern, _>()?;
+    kv.eof()?;
+    return Ok(
+      ProtocolAttr {
+        name: name,
+        id_ident: id_ident,
+        properties: properties,
+        force_extern: force_extern.is_some(),
+      }
+    );
   }
 }
 
@@ -186,14 +191,12 @@ fn parse_method(method: &mut TraitItemMethod) -> Result<ProtocolMethod, Diagnost
 }
 
 pub fn parse_protocol(attr: ProtocolAttr, input: TokenStream) -> Result<TokenStream, Diagnostic> {
-  let input = TokenBuffer::new2(input);
-  let mut item = match <ItemTrait as Synom>::parse(input.begin()) {
-    Ok((st, _)) => st,
+  let mut item;
+  match parse2::<ItemTrait>(input) {
+    Ok(value) => item = value,
     Err(error) => {
       return Err(
-        input
-          .begin()
-          .token_stream()
+        error
           .span()
           .unstable()
           .error(format!("failed to parse trait: {}", error.to_string()))
@@ -247,7 +250,7 @@ pub fn parse_protocol(attr: ProtocolAttr, input: TokenStream) -> Result<TokenStr
           defaultness: None,
           sig: method.sig.clone(),
           block: Block {
-            brace_token: Brace(Span::call_site()),
+            brace_token: syn::token::Brace(Span::call_site()),
             stmts: Vec::new(),
           },
         };
@@ -303,7 +306,7 @@ pub fn parse_protocol(attr: ProtocolAttr, input: TokenStream) -> Result<TokenStr
   let ident = &item.ident;
   let generics = &item.generics;
   let where_clause = &generics.where_clause;
-  let mut generic_idents: Punctuated<&ToTokens, Comma> = Punctuated::new();
+  let mut generic_idents: Punctuated<&ToTokens, syn::token::Comma> = Punctuated::new();
   for param in item.generics.params.iter() {
     match param {
       GenericParam::Type(ref generic_type) => {

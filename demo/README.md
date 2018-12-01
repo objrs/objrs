@@ -6,8 +6,8 @@ When run, the application will open a window that uses Metal to render the Rust 
 
 ## Requirements
 
-- A recent version of macOS (only macOS 10.13.6 has been tested).
-- Nightly Rust compiler (tested on `rustc 1.30.0-nightly (b2028828d 2018-08-16)`).
+- A recent version of macOS (only macOS 10.14.1 has been tested).
+- Nightly Rust compiler (tested on `rustc 1.32.0-nightly (5aff30734 2018-11-19)`).
 
 ## Instructions
 

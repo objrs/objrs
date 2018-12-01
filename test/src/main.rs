@@ -8,7 +8,6 @@
 //   lang_items,
 //   start,
 //   libc,
-//   used,
 //   rust_2018_preview,
 //   // proc_macro_non_items,  // Required for nsstring!.
 // )]
@@ -327,7 +326,7 @@
 //   return 0;
 // }
 
-#![feature(rust_2018_preview, used, proc_macro_non_items)]
+#![feature(rust_2018_preview, proc_macro_hygiene)]
 
 // extern crate objrs;
 // use objrs::objrs;

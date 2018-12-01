@@ -6,7 +6,7 @@
 
 [package]
 name = "objrs_frameworks_metal"
-version = "0.0.1"
+version = "0.0.2"
 authors = ["Michael Bradshaw <mjbshaw@gmail.com>"]
 license = "Apache-2.0 OR MIT OR MPL-2.0"
 description = "Bindings for Apple's Metal framework."
@@ -20,5 +20,5 @@ maintenance = { status = "experimental" }
 
 [dependencies]
 libc = { version = "0.2", default-features = false }
-objrs = { path = "../../", version = "0.0.1" }
-objrs_frameworks_foundation = { path = "../foundation", version = "0.0.1" }
+objrs = { path = "../../", version = "0.0.2" }
+objrs_frameworks_foundation = { path = "../foundation", version = "0.0.2" }

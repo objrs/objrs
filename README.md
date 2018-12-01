@@ -62,8 +62,8 @@ Check out the [`demo`](demo) directory for a full demo application (written in 1
 # How to use objrs
 
 1. Use a recent nightly version of Rust on macOS.
-2. Put `objrs = "0.0.1"` in your `Cargo.toml`'s `[dependencies]` section.
-3. Put `#![feature(rust_2018_preview, used)]` in your crate's main Rust file to enable nightly features required by objrs.
+2. Put `objrs = "0.0.2"` in your `Cargo.toml`'s `[dependencies]` section.
+3. Put `#![feature(rust_2018_preview)]` in your crate's main Rust file to enable nightly features required by objrs.
 4. Put `use objrs::objrs` in your code to bring the `objrs` macro attribute into scope.
 5. Hack away!
 
@@ -146,14 +146,13 @@ fn main() {
 - [ ] Figure out how to support protocols properly. The current implementation is both super sketchy and annoying to use.
 - [ ] Properly support autoreleased and weak values. I've kinda just ignored them.
 - [ ] Automatically inject unit tests into code that uses objrs's macros. The unit tests would compare class names, inheritance structure, selectors, method arguments and return values, protocol conformance, etc. This could all be done automatically today.
-- [ ] Improve error messages if parsing an objrs attribute fails. This could be nicely automated using [Brzozowski's derivative](https://en.wikipedia.org/wiki/Brzozowski_derivative) to provide error messages of the form "expected `X` or `Y`, found `Z`" (complete with span information).
 - [ ] Blocks. They're completely unsupported at this point.
 
 # Requirements
 
 - Nightly Rust.
 - macOS. iOS and tvOS should work (fingers crossed), but they haven't been tested. watchOS support depends on armv7 support.
-- A recent OS version. Only macOS 10.13.6 has been tested. Minimum requirements will be established later.
+- A recent OS version. Only macOS 10.14.1 has been tested. Minimum requirements will be established later.
 - An x86_64 or arm64 (aarch64) computer. armv7 support could be added, but I don't have an armv7 Apple device. i386 (32-bit x86) support could be added, but there are no plans to do so given its obsolescence.
 
 # License

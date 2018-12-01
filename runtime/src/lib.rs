@@ -4,7 +4,7 @@
 // terms. See the COPYRIGHT file at the top-level directory of this distribution for copies of these
 // licenses and more information.
 
-#![feature(global_asm, untagged_unions, used)]
+#![feature(global_asm, untagged_unions)]
 #![no_std]
 
 mod message;

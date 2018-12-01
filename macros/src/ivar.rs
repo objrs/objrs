@@ -10,8 +10,8 @@ use proc_macro::Diagnostic;
 use proc_macro2::{Span, TokenStream};
 use std::collections::HashSet;
 use syn::{
-  call, custom_keyword, do_parse, named, option, parens, punct, spanned::Spanned, syn,
-  synom::Synom, visit_mut::visit_block_mut, visit_mut::visit_expr_mut, visit_mut::VisitMut, Abi,
+ spanned::Spanned,
+visit_mut::visit_block_mut, visit_mut::visit_expr_mut, visit_mut::VisitMut, Abi,
   AngleBracketedGenericArguments, ArgCaptured, ArgSelf, ArgSelfRef, AttrStyle, Attribute,
   BareFnArg, BareFnArgName, BinOp, Binding, Block, BoundLifetimes, ConstParam, Data, DataEnum,
   DataStruct, DataUnion, DeriveInput, Expr, ExprBlock, ExprVerbatim, Field, Fields, FieldsNamed,
@@ -32,6 +32,7 @@ use syn::{
   UseName, UsePath, UseRename, UseTree, Variant, VisCrate, VisPublic, VisRestricted, Visibility,
   WhereClause, WherePredicate,
 };
+use syn::parse::{Parse, ParseStream};
 use util::{priv_ident, priv_ident_at};
 
 #[derive(Default)]
@@ -43,22 +44,21 @@ pub struct IvarAttr {
 // #[objrs(ivar
 //         [,name = "name"]
 //         [,default = expr][,])]
-impl Synom for IvarAttr {
-  named!(parse -> Self, do_parse!(
-    group: parens!(do_parse!(
-      custom_keyword!(ivar) >>
-      name: option!(do_parse!(punct!(,) >> custom_keyword!(name) >> punct!(=) >> name: syn!(LitStr) >> (name))) >>
-      default: option!(do_parse!(punct!(,) >> custom_keyword!(default) >> punct!(=) >> default: syn!(Expr) >> (default))) >>
-      option!(punct!(,)) >>
-      (IvarAttr {
+impl Parse for IvarAttr {
+  fn parse(input: ParseStream) -> syn::parse::Result<Self> {
+    use util::{KV, ivar, default, name};
+
+    let mut kv = KV::new(input);
+    kv.parse::<ivar, _>()?;
+    let name: Option<LitStr> = kv.parse::<name, _>()?;
+    let default: Option<Expr> = kv.parse::<default, _>()?;
+    kv.eof()?;
+    return Ok(
+      IvarAttr {
         name: name,
         default: default,
-      })
-    )) >> (group.1)
-  ));
-
-  fn description() -> Option<&'static str> {
-    return Some("objrs ivar attribute");
+      }
+    );
   }
 }
 
@@ -411,6 +411,7 @@ pub fn transform_ivars(method: &mut ImplItemMethod) -> Result<(), Diagnostic> {
     })),
     Stmt::Expr(Expr::Block(ExprBlock {
       attrs: Vec::new(),
+      label: None,
       block: original_block,
     })),
   ];
