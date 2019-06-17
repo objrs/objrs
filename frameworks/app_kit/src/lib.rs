@@ -1,10 +1,9 @@
-// The contents of this file is licensed by its authors and copyright holders under the Apache
-// License (Version 2.0), MIT license, or Mozilla Public License (Version 2.0), at your option. The
-// contents of this file may not be copied, modified, or distributed except according to those
-// terms. See the COPYRIGHT file at the top-level directory of this distribution for copies of these
-// licenses and more information.
+// This file and its contents are licensed by their authors and copyright holders under the Apache
+// License (Version 2.0), MIT license, or Mozilla Public License (Version 2.0), at your option, and
+// may not be copied, modified, or distributed except according to those terms. For copies of these
+// licenses and more information, see the COPYRIGHT file in this distribution's top-level directory.
 
-#![feature(arbitrary_self_types, extern_types, rust_2018_preview)]
+#![feature(arbitrary_self_types, extern_types)]
 #![no_std]
 
 extern crate objrs;
@@ -20,11 +19,11 @@ mod nsview;
 mod nsview_controller;
 mod nswindow;
 
-pub use nsapplication::*;
-pub use nsapplication_delegate::*;
-pub use nsmenu::*;
-pub use nsmenu_item::*;
-pub use nsresponder::*;
-pub use nsview::*;
-pub use nsview_controller::*;
-pub use nswindow::*;
+pub use crate::nsapplication::*;
+pub use crate::nsapplication_delegate::*;
+pub use crate::nsmenu::*;
+pub use crate::nsmenu_item::*;
+pub use crate::nsresponder::*;
+pub use crate::nsview::*;
+pub use crate::nsview_controller::*;
+pub use crate::nswindow::*;

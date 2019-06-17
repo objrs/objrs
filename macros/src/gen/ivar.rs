@@ -1,18 +1,18 @@
-// The contents of this file is licensed by its authors and copyright holders under the Apache
-// License (Version 2.0), MIT license, or Mozilla Public License (Version 2.0), at your option. The
-// contents of this file may not be copied, modified, or distributed except according to those
-// terms. See the COPYRIGHT file at the top-level directory of this distribution for copies of these
-// licenses and more information.
+// This file and its contents are licensed by their authors and copyright holders under the Apache
+// License (Version 2.0), MIT license, or Mozilla Public License (Version 2.0), at your option, and
+// may not be copied, modified, or distributed except according to those terms. For copies of these
+// licenses and more information, see the COPYRIGHT file in this distribution's top-level directory.
 
 extern crate core;
 
+use crate::util::{priv_ident, priv_ident_at};
 use proc_macro::Diagnostic;
 use proc_macro2::{Span, TokenStream};
+use quote::quote;
 use std::collections::HashSet;
 use syn::{
- spanned::Spanned,
-visit_mut::visit_block_mut, visit_mut::visit_expr_mut, visit_mut::VisitMut, Abi,
-  AngleBracketedGenericArguments, ArgCaptured, ArgSelf, ArgSelfRef, AttrStyle, Attribute,
+  spanned::Spanned, visit_mut::visit_block_mut, visit_mut::visit_expr_mut, visit_mut::VisitMut,
+  Abi, AngleBracketedGenericArguments, ArgCaptured, ArgSelf, ArgSelfRef, AttrStyle, Attribute,
   BareFnArg, BareFnArgName, BinOp, Binding, Block, BoundLifetimes, ConstParam, Data, DataEnum,
   DataStruct, DataUnion, DeriveInput, Expr, ExprBlock, ExprVerbatim, Field, Fields, FieldsNamed,
   FieldsUnnamed, File, FnArg, FnDecl, ForeignItem, ForeignItemFn, ForeignItemStatic,
@@ -32,35 +32,6 @@ visit_mut::visit_block_mut, visit_mut::visit_expr_mut, visit_mut::VisitMut, Abi,
   UseName, UsePath, UseRename, UseTree, Variant, VisCrate, VisPublic, VisRestricted, Visibility,
   WhereClause, WherePredicate,
 };
-use syn::parse::{Parse, ParseStream};
-use util::{priv_ident, priv_ident_at};
-
-#[derive(Default)]
-pub struct IvarAttr {
-  pub name: Option<LitStr>,
-  pub default: Option<Expr>,
-}
-
-// #[objrs(ivar
-//         [,name = "name"]
-//         [,default = expr][,])]
-impl Parse for IvarAttr {
-  fn parse(input: ParseStream) -> syn::parse::Result<Self> {
-    use util::{KV, ivar, default, name};
-
-    let mut kv = KV::new(input);
-    kv.parse::<ivar, _>()?;
-    let name: Option<LitStr> = kv.parse::<name, _>()?;
-    let default: Option<Expr> = kv.parse::<default, _>()?;
-    kv.eof()?;
-    return Ok(
-      IvarAttr {
-        name: name,
-        default: default,
-      }
-    );
-  }
-}
 
 #[derive(Hash, Eq, PartialEq)]
 enum LiteMember {
@@ -77,11 +48,11 @@ impl LiteMember {
   }
 }
 
-struct MethodVisitor {
+struct MethodVisitor<'a> {
   self_name: String,
   self_arg: Ident,
   priv_name: String,
-  objrs_root: Ident,
+  objrs_root: &'a Ident,
   as_fn: TokenStream,
   take_ref: TokenStream,
   // Rust's HashMap is very innefficient for String keys (because all the methods take an owned key
@@ -90,27 +61,21 @@ struct MethodVisitor {
   // extra string allocations. Might as well put them to use.
   ivar_refs: HashSet<LiteMember>,
   load_ivars: TokenStream,
+  modified: bool,
 }
 
-impl MethodVisitor {
-  fn new(as_ref: bool, self_arg: Ident, priv_name: String) -> MethodVisitor {
+impl<'a> MethodVisitor<'a> {
+  fn new(as_ref: bool, self_arg: Ident, objrs_root: &'a Ident, priv_name: String) -> MethodVisitor {
     return MethodVisitor {
       self_name: self_arg.to_string(),
       self_arg: self_arg,
       priv_name: priv_name,
-      objrs_root: priv_ident("__objrs_root"),
-      as_fn: if as_ref {
-        quote!(as_ref)
-      } else {
-        quote!(as_mut)
-      },
-      take_ref: if as_ref {
-        quote!(&)
-      } else {
-        quote!(&mut)
-      },
+      objrs_root: objrs_root,
+      as_fn: if as_ref { quote!(as_ref) } else { quote!(as_mut) },
+      take_ref: if as_ref { quote!(&) } else { quote!(&mut) },
       ivar_refs: HashSet::new(),
       load_ivars: TokenStream::new(),
+      modified: false,
     };
   }
 
@@ -123,11 +88,11 @@ impl MethodVisitor {
   }
 }
 
-impl VisitMut for MethodVisitor {
+impl<'a> VisitMut for MethodVisitor<'a> {
   fn visit_expr_mut(&mut self, expr: &mut Expr) {
     let new_expr;
     if self.expr_is_self(expr) {
-      let objrs_root = &self.objrs_root;
+      let objrs_root = self.objrs_root;
       let span = expr.span();
       let objrs_self = priv_ident_at(&self.priv_name, span);
       let as_fn = &self.as_fn;
@@ -136,7 +101,7 @@ impl VisitMut for MethodVisitor {
       }));
     } else if let Expr::Field(ref mut expr_field) = expr {
       if self.expr_is_self(&expr_field.base) {
-        let objrs_root = &self.objrs_root;
+        let objrs_root = self.objrs_root;
         let objrs_self = priv_ident_at(&self.priv_name, expr_field.base.span());
         let fields = priv_ident_at("fields", expr_field.base.span());
         let dot = &expr_field.dot_token;
@@ -149,7 +114,9 @@ impl VisitMut for MethodVisitor {
         let self_arg = &self.self_arg;
         if self.ivar_refs.insert(LiteMember::new(member)) {
           self.load_ivars.extend(quote!{
-            #objrs_root::__objrs::Field::load(&mut #objrs_self #dot #fields #dot #member, unsafe { #objrs_root::__objrs::core::mem::transmute(&*#self_arg) });
+            unsafe {
+              #objrs_root::__objrs::Field::load(&mut #objrs_self #dot #fields #dot #member, #objrs_root::__objrs::core::mem::transmute(&*#self_arg));
+            }
           });
         }
       } else {
@@ -161,6 +128,7 @@ impl VisitMut for MethodVisitor {
 
     if let Some(new_expr) = new_expr {
       *expr = new_expr;
+      self.modified = true;
       return;
     }
 
@@ -311,7 +279,7 @@ impl VisitMut for MethodVisitor {
   fn visit_where_predicate_mut(&mut self, _: &mut WherePredicate) {}
 }
 
-pub fn transform_ivars(method: &mut ImplItemMethod) -> Result<(), Diagnostic> {
+pub fn transform_ivars(method: &mut ImplItemMethod, objrs_root: &Ident) -> Result<(), Diagnostic> {
   if method.block.stmts.is_empty() {
     return Ok(());
   }
@@ -374,19 +342,15 @@ pub fn transform_ivars(method: &mut ImplItemMethod) -> Result<(), Diagnostic> {
   }
 
   let objrs_self = priv_ident(&priv_name);
-  let mut visitor = MethodVisitor::new(as_ref, self_arg, priv_name);
+  let mut visitor = MethodVisitor::new(as_ref, self_arg, objrs_root, priv_name);
   visit_block_mut(&mut visitor, &mut method.block);
 
-  let maybe_mut = if as_ref {
-    None
-  } else {
-    Some(quote!(mut))
-  };
-  let extend = if as_ref {
-    quote!(extend_ref)
-  } else {
-    quote!(extend_mut)
-  };
+  if !visitor.modified {
+    return Ok(());
+  }
+
+  let maybe_mut = if as_ref { None } else { Some(quote!(mut)) };
+  let extend = if as_ref { quote!(extend_ref) } else { quote!(extend_mut) };
 
   let self_arg = visitor.self_arg;
   let take_ref = visitor.take_ref;
@@ -402,8 +366,7 @@ pub fn transform_ivars(method: &mut ImplItemMethod) -> Result<(), Diagnostic> {
   );
   let stmts = vec![
     Stmt::Item(Item::Verbatim(ItemVerbatim {
-      tts: quote!{
-        extern crate objrs as #objrs_root;
+      tts: quote! {
         let mut #objrs_self = <Self as #objrs_root::__objrs::Fields>::from_ref(#self_arg);
         #load_ivars
         let #maybe_mut #objrs_self = unsafe { #objrs_root::__objrs::ThisAndFields::#extend(#take_ref #objrs_self, #self_arg) };
@@ -417,4 +380,125 @@ pub fn transform_ivars(method: &mut ImplItemMethod) -> Result<(), Diagnostic> {
   ];
   method.block.stmts = stmts;
   return Ok(());
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use quote::ToTokens;
+  use syn::parse_quote;
+
+  #[test]
+  fn nop() {
+    // TODO: should transform_ivars() support class methods? It currently doesn't.
+    let objrs_root: Ident = parse_quote!(__objrs_root);
+    let original: ImplItemMethod = parse_quote!(fn foo(self) {});
+    let mut method = original.clone();
+    assert!(transform_ivars(&mut method, &objrs_root).is_ok());
+    assert_eq!(method, original);
+
+    let original: ImplItemMethod = parse_quote!(fn foo(self) { do_something(); });
+    let mut method = original.clone();
+    assert!(transform_ivars(&mut method, &objrs_root).is_ok());
+    assert_eq!(method, original);
+  }
+
+  #[test]
+  fn pass_self() {
+    let objrs_root: Ident = parse_quote!(__objrs_root);
+    let mut method: ImplItemMethod = parse_quote!(fn foo(self) { do_something(self); });
+    assert!(transform_ivars(&mut method, &objrs_root).is_ok());
+
+    let expected: ImplItemMethod = parse_quote!(fn foo(self) {
+      let mut __objrs_self = <Self as __objrs_root::__objrs::Fields>::from_ref(self);
+      let __objrs_self = unsafe { __objrs_root::__objrs::ThisAndFields::extend_ref(&__objrs_self, self) };
+      {
+        do_something(__objrs_root::__objrs::ThisAndFields::as_ref(__objrs_self));
+      }
+    });
+    assert_eq!(method.into_token_stream().to_string(), expected.into_token_stream().to_string());
+  }
+
+  #[test]
+  fn call_method() {
+    let objrs_root: Ident = parse_quote!(__objrs_root);
+    let mut method: ImplItemMethod = parse_quote!(fn foo(self) { self.do_something(); });
+    assert!(transform_ivars(&mut method, &objrs_root).is_ok());
+
+    let expected: ImplItemMethod = parse_quote!(fn foo(self) {
+      let mut __objrs_self = <Self as __objrs_root::__objrs::Fields>::from_ref(self);
+      let __objrs_self = unsafe { __objrs_root::__objrs::ThisAndFields::extend_ref(&__objrs_self, self) };
+      {
+        __objrs_root::__objrs::ThisAndFields::as_ref(__objrs_self).do_something();
+      }
+    });
+    assert_eq!(method.into_token_stream().to_string(), expected.into_token_stream().to_string());
+  }
+
+  #[test]
+  fn read_ivars() {
+    let objrs_root: Ident = parse_quote!(__objrs_root);
+    let mut method: ImplItemMethod = parse_quote!(fn foo(self) { do_something(self.foo); });
+    assert!(transform_ivars(&mut method, &objrs_root).is_ok());
+
+    let expected: ImplItemMethod = parse_quote!(fn foo(self) {
+      let mut __objrs_self = <Self as __objrs_root::__objrs::Fields>::from_ref(self);
+      unsafe { __objrs_root::__objrs::Field::load(&mut __objrs_self.fields.foo, __objrs_root::__objrs::core::mem::transmute(&*self)); }
+      let __objrs_self = unsafe { __objrs_root::__objrs::ThisAndFields::extend_ref(&__objrs_self, self) };
+      {
+        do_something((*__objrs_root::__objrs::Field::as_ref(&__objrs_self.fields.foo)));
+      }
+    });
+    assert_eq!(method.into_token_stream().to_string(), expected.into_token_stream().to_string());
+  }
+
+  #[test]
+  fn read_write_ivars() {
+    let objrs_root: Ident = parse_quote!(__objrs_root);
+    let mut method: ImplItemMethod = parse_quote!(fn foo(mut self) { self.foo = self.bar; });
+    assert!(transform_ivars(&mut method, &objrs_root).is_ok());
+
+    let expected: ImplItemMethod = parse_quote!(fn foo(mut self) {
+      let mut __objrs_self = <Self as __objrs_root::__objrs::Fields>::from_ref(self);
+      unsafe { __objrs_root::__objrs::Field::load(&mut __objrs_self.fields.foo, __objrs_root::__objrs::core::mem::transmute(&*self)); }
+      unsafe { __objrs_root::__objrs::Field::load(&mut __objrs_self.fields.bar, __objrs_root::__objrs::core::mem::transmute(&*self)); }
+      let mut __objrs_self = unsafe { __objrs_root::__objrs::ThisAndFields::extend_mut(&mut __objrs_self, self) };
+      {
+        (*__objrs_root::__objrs::Field::as_mut(&mut __objrs_self.fields.foo)) = (*__objrs_root::__objrs::Field::as_mut(&mut __objrs_self.fields.bar));
+      }
+    });
+    assert_eq!(method.into_token_stream().to_string(), expected.into_token_stream().to_string());
+  }
+
+  #[test]
+  fn tuples() {
+    let objrs_root: Ident = parse_quote!(__objrs_root);
+    let mut method: ImplItemMethod = parse_quote!(fn foo(self) { do_something(self.0); });
+    assert!(transform_ivars(&mut method, &objrs_root).is_ok());
+
+    let expected: ImplItemMethod = parse_quote!(fn foo(self) {
+      let mut __objrs_self = <Self as __objrs_root::__objrs::Fields>::from_ref(self);
+      unsafe { __objrs_root::__objrs::Field::load(&mut __objrs_self.fields.0, __objrs_root::__objrs::core::mem::transmute(&*self)); }
+      let __objrs_self = unsafe { __objrs_root::__objrs::ThisAndFields::extend_ref(&__objrs_self, self) };
+      {
+        do_something((*__objrs_root::__objrs::Field::as_ref(&__objrs_self.fields.0)));
+      }
+    });
+    assert_eq!(method.into_token_stream().to_string(), expected.into_token_stream().to_string());
+  }
+
+  #[test]
+  fn ignore_items() {
+    let objrs_root: Ident = parse_quote!(__objrs_root);
+    let original: ImplItemMethod = parse_quote!(fn foo(self) {
+      impl Ignored {
+        fn bar(self) {
+          self.this_should_not_be_modified();
+        }
+      }
+    });
+    let mut method = original.clone();
+    assert!(transform_ivars(&mut method, &objrs_root).is_ok());
+    assert_eq!(method, original);
+  }
 }

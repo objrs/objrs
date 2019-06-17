@@ -1,10 +1,9 @@
-// The contents of this file is licensed by its authors and copyright holders under the Apache
-// License (Version 2.0), MIT license, or Mozilla Public License (Version 2.0), at your option. The
-// contents of this file may not be copied, modified, or distributed except according to those
-// terms. See the COPYRIGHT file at the top-level directory of this distribution for copies of these
-// licenses and more information.
+// This file and its contents are licensed by their authors and copyright holders under the Apache
+// License (Version 2.0), MIT license, or Mozilla Public License (Version 2.0), at your option, and
+// may not be copied, modified, or distributed except according to those terms. For copies of these
+// licenses and more information, see the COPYRIGHT file in this distribution's top-level directory.
 
-#![feature(arbitrary_self_types, extern_types, rust_2018_preview)]
+#![feature(arbitrary_self_types, extern_types)]
 #![no_std]
 
 extern crate objrs;
@@ -16,5 +15,5 @@ extern crate objrs_frameworks_metal;
 mod mtkview;
 mod mtkview_delegate;
 
-pub use mtkview::*;
-pub use mtkview_delegate::*;
+pub use crate::mtkview::*;
+pub use crate::mtkview_delegate::*;

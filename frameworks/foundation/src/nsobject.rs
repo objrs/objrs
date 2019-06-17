@@ -1,8 +1,7 @@
-// The contents of this file is licensed by its authors and copyright holders under the Apache
-// License (Version 2.0), MIT license, or Mozilla Public License (Version 2.0), at your option. The
-// contents of this file may not be copied, modified, or distributed except according to those
-// terms. See the COPYRIGHT file at the top-level directory of this distribution for copies of these
-// licenses and more information.
+// This file and its contents are licensed by their authors and copyright holders under the Apache
+// License (Version 2.0), MIT license, or Mozilla Public License (Version 2.0), at your option, and
+// may not be copied, modified, or distributed except according to those terms. For copies of these
+// licenses and more information, see the COPYRIGHT file in this distribution's top-level directory.
 
 // See https://github.com/opensource-apple/objc4/blob/master/runtime/NSObject.h
 // Even though NSObject is provided by libobjc (and not the Foundation framework), we need to provide NSObject from the Foundation crate. This is because of a few issues:
@@ -19,7 +18,7 @@ use objrs::objrs;
 #[repr(C)]
 pub struct NSObject {
   #[deprecated]
-  isa: objrs::runtime::Class,
+  isa: *mut objrs::Class,
 }
 
 #[objrs(impl)]
@@ -45,41 +44,41 @@ impl NSObject {
   // pub unsafe fn mutable_copy(&self) -> objrs::Strong<NSObject> {}
 
   #[objrs(selector = "instancesRespondToSelector:")]
-  pub fn instances_respond_to_selector(sel: objrs::runtime::SEL) -> bool {}
+  pub fn instances_respond_to_selector(sel: &objrs::Sel) -> bool {}
 
   // #[objrs(selector = "methodForSelector:")]
-  // pub unsafe fn method_for_selector(&self, sel: objrs::runtime::SEL) -> objrs::runtime::IMP {}
+  // pub unsafe fn method_for_selector(&self, sel: &objrs::Sel) -> *mut objrs::Imp {}
 
   // #[objrs(selector = "instanceMethodForSelector:")]
-  // pub unsafe fn instance_method_for_selector(sel: objrs::runtime::SEL) -> objrs::runtime::IMP {}
+  // pub unsafe fn instance_method_for_selector(sel: &objrs::Sel) -> *mut objrs::Imp {}
 
   // #[objrs(selector = "doesNotRecognizeSelector:")]
-  // pub unsafe fn does_not_recognize_selector(&self, sel: objrs::runtime::SEL) {}
+  // pub unsafe fn does_not_recognize_selector(&self, sel: &objrs::Sel) {}
 
   // #[objrs(selector = "forwardingTargetForSelector:")]
   // pub unsafe fn forwarding_target_for_selector(
   //   &self,
-  //   sel: objrs::runtime::SEL,
-  // ) -> objrs::runtime::id {
+  //   sel: &objrs::Sel,
+  // ) -> *mut objrs::Id {
   // }
 
   #[objrs(selector = "hash")]
   pub fn hash() -> usize {}
 
   #[objrs(selector = "superclass")]
-  pub fn superclass() -> objrs::runtime::Class {}
+  pub fn superclass() -> *mut objrs::Class {}
 
   #[objrs(selector = "class")]
-  pub fn class() -> objrs::runtime::Class {}
+  pub fn class() -> *mut objrs::Class {}
 
   // #[objrs(selector = "isSubclassOfClass:")]
-  // pub unsafe fn is_subclass_of_class(class: objrs::runtime::Class) -> bool {}
+  // pub unsafe fn is_subclass_of_class(class: *const objrs::Class) -> bool {}
 
   // #[objrs(selector = "resolveClassMethod:")]
-  // pub unsafe fn resolve_class_method(sel: objrs::runtime::SEL) -> bool {}
+  // pub unsafe fn resolve_class_method(sel: &'static objrs::Sel) -> bool {}
 
   // #[objrs(selector = "resolveInstanceMethod:")]
-  // pub unsafe fn resolve_instance_method(sel: objrs::runtime::SEL) -> bool {}
+  // pub unsafe fn resolve_instance_method(sel: &'static objrs::Sel) -> bool {}
 }
 
 // @protocol NSObject

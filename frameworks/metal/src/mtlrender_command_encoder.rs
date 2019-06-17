@@ -1,12 +1,11 @@
-// The contents of this file is licensed by its authors and copyright holders under the Apache
-// License (Version 2.0), MIT license, or Mozilla Public License (Version 2.0), at your option. The
-// contents of this file may not be copied, modified, or distributed except according to those
-// terms. See the COPYRIGHT file at the top-level directory of this distribution for copies of these
-// licenses and more information.
+// This file and its contents are licensed by their authors and copyright holders under the Apache
+// License (Version 2.0), MIT license, or Mozilla Public License (Version 2.0), at your option, and
+// may not be copied, modified, or distributed except according to those terms. For copies of these
+// licenses and more information, see the COPYRIGHT file in this distribution's top-level directory.
 
-use mtlbuffer::MTLBufferId;
-use mtlrender_pipeline::MTLRenderPipelineStateId;
-use objrs::objrs;
+use crate::mtlbuffer::MTLBuffer;
+use crate::mtlrender_pipeline::MTLRenderPipelineState;
+use objrs::{objrs, Id};
 
 #[derive(Debug, Default, Copy, Clone, PartialEq)]
 #[repr(transparent)]
@@ -44,19 +43,19 @@ pub struct MTLViewport {
 unsafe impl objrs::marker::Zeroed for MTLViewport {}
 impl objrs::marker::Forgettable for MTLViewport {}
 
-#[objrs(protocol, id_ident = MTLRenderCommandEncoderId)]
+#[objrs(protocol)]
 #[link(name = "Metal", kind = "framework")]
 pub trait MTLRenderCommandEncoder: objrs::marker::Class {
   #[objrs(selector = "setViewport:")]
   fn set_viewport(&mut self, viewport: MTLViewport);
 
   #[objrs(selector = "setRenderPipelineState:")]
-  fn set_render_pipeline_state(&mut self, state: &mut MTLRenderPipelineStateId);
+  fn set_render_pipeline_state(&mut self, state: &mut Id<dyn MTLRenderPipelineState>);
 
   #[objrs(selector = "setVertexBuffer:offset:atIndex:")]
   unsafe fn set_vertex_buffer_at_index(
     &mut self,
-    vertex_buffer: Option<&mut MTLBufferId>,
+    vertex_buffer: Option<&mut Id<dyn MTLBuffer>>,
     offset: usize,
     index: usize,
   );
@@ -82,8 +81,8 @@ pub trait MTLRenderCommandEncoder: objrs::marker::Class {
   fn end_encoding(&mut self);
 }
 
-impl MTLRenderCommandEncoderId {
-  pub fn set_vertex_slice<T: Copy>(&mut self, vertex_slice: &[T], index: usize) {
+pub trait MTLRenderCommandEncoderExt: MTLRenderCommandEncoder {
+  fn set_vertex_slice<T: Copy>(&mut self, vertex_slice: &[T], index: usize) {
     assert!(core::mem::size_of::<T>() > 0);
     unsafe {
       return self.set_vertex_bytes_at_index(
@@ -94,7 +93,7 @@ impl MTLRenderCommandEncoderId {
     }
   }
 
-  pub fn set_vertex_struct<T: Copy>(&mut self, vertex_struct: &T, index: usize) {
+  fn set_vertex_struct<T: Copy>(&mut self, vertex_struct: &T, index: usize) {
     assert!(core::mem::size_of::<T>() > 0);
     unsafe {
       return self.set_vertex_bytes_at_index(
@@ -105,3 +104,5 @@ impl MTLRenderCommandEncoderId {
     }
   }
 }
+
+impl<T: MTLRenderCommandEncoder + ?Sized> MTLRenderCommandEncoderExt for T {}

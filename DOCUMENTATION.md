@@ -325,7 +325,7 @@ One major limitation of instance variables (regardless of whether `#[objrs(ivar)
 
 ## Literals
 
-Literal `NSString`s and `SEL`s and be created with the `objrs_frameworks_foundation::nsstring!` and `objrs::selector!` macros (respectively). Example: 
+Literal `NSString`s and `SEL`s and be created with the `objrs_frameworks_foundation::nsstring!` and `objrs::selector!` macros (respectively). Example:
 
 ```rust
 // nsstring! is provided by the objrs_frameworks_foundation crate. It creates &'static objrs_frameworks_foundation::NSString objects.

@@ -1,15 +1,14 @@
-// The contents of this file is licensed by its authors and copyright holders under the Apache
-// License (Version 2.0), MIT license, or Mozilla Public License (Version 2.0), at your option. The
-// contents of this file may not be copied, modified, or distributed except according to those
-// terms. See the COPYRIGHT file at the top-level directory of this distribution for copies of these
-// licenses and more information.
+// This file and its contents are licensed by their authors and copyright holders under the Apache
+// License (Version 2.0), MIT license, or Mozilla Public License (Version 2.0), at your option, and
+// may not be copied, modified, or distributed except according to those terms. For copies of these
+// licenses and more information, see the COPYRIGHT file in this distribution's top-level directory.
 
 extern crate libc;
 
 extern crate core;
 extern crate objrs;
 
-use nsobject;
+use crate::nsobject;
 use objrs::objrs;
 
 // TODO: LLVM's Early CSE pass ("early-cse": http://llvm.org/doxygen/EarlyCSE_8cpp_source.html) is breaking objrs. It optimizes out the static selref variable. Even marking the variable as #[used] doesn't fix it (that causes the variable to not be optimized out, but the LLVM IR still doesn't use it, as it prefers loading the address of the method name instead). Run rustc with ` -C opt-level=0 -C passes=early-cse` to see the impact (use `-C llvm-args=-print-after-all` to verify that it's indeed the Early CSE pass that's causing this).
@@ -203,6 +202,35 @@ impl AsRef<str> for NSString {
   }
 }
 
+// TODO: provide From<String> and From<&str> (and maybe std::ffi::CString/CStr).
+// impl From<String> for NSString {
+//   fn from(string: String) -> NSString {
+//     cfstring = CFStringCreateWithBytesNoCopy(core::ptr::null_mut(), string.as_bytes(), string.len(), kCFStringEncodingUTF8, false,
+//   }
+// }
+
+// TODO: replace the nsstring! proc macro with this, which makes it agnostic to the crate name.
+// #[macro_export]
+// macro_rules! nsstring {
+//   ($sel:literal $(,)?) => {{
+//     use $crate::__objrs::nnstring_literal;
+
+//     #[link_section = #bytes_link_section]
+//     #[export_name = #bytes_export_name]
+//     static BYTES: [$crate::__objrs::#char_type; #array_length] = #chars;
+
+//     #[export_name = #string_export_name]
+//     static STRING: $crate::__objrs::CFConstantString = $crate::__objrs::CFConstantString {
+//         isa:    unsafe { &$crate::__objrs::CFConstantStringClassReference },
+//         info:   0u32,
+//         ptr:    &0u8,
+//         length: 0usize,
+//     };
+
+//     unsafe { $crate::__objrs::TransmuteHack::<_, &'static $crate::NSString> { from: &STRING }.to }
+//   }};
+// }
+
 // See https://github.com/opensource-apple/CF/blob/master/CFString.c
 
 #[doc(hidden)]
@@ -214,12 +242,10 @@ pub mod __objrs {
     pub type CFConstantStringClassReference;
 
     #[link_name = "__CFConstantStringClassReference"]
-    #[doc(hidden)]
     pub static CFConstantStringClassReference: CFConstantStringClassReference;
   }
 
   #[repr(C)]
-  #[doc(hidden)]
   pub struct CFConstantString {
     pub isa: &'static CFConstantStringClassReference,
     pub info: u32,
@@ -230,7 +256,9 @@ pub mod __objrs {
   unsafe impl core::marker::Sync for CFConstantString {}
 }
 
+// TODO: add a macro for formatting a string (e.g. nsstring_format!("{}, {}! {}", nsstring!("Hello"), "world", 42))
 // TODO: I don't think this merges duplicate strings (that is, nsstring!("hi"); nsstring!("hi"); will create two separate literals).
 pub use objrs_frameworks_foundation_macros::nsstring;
 
-// TODO: add a macro for formatting a string (e.g. nsstring_format!("{}, {}! {}", nsstring!("Hello"), "world", 42))
+// TODO: should NSString be sync?
+unsafe impl core::marker::Sync for NSString {}

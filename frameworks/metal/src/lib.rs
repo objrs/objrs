@@ -1,10 +1,9 @@
-// The contents of this file is licensed by its authors and copyright holders under the Apache
-// License (Version 2.0), MIT license, or Mozilla Public License (Version 2.0), at your option. The
-// contents of this file may not be copied, modified, or distributed except according to those
-// terms. See the COPYRIGHT file at the top-level directory of this distribution for copies of these
-// licenses and more information.
+// This file and its contents are licensed by their authors and copyright holders under the Apache
+// License (Version 2.0), MIT license, or Mozilla Public License (Version 2.0), at your option, and
+// may not be copied, modified, or distributed except according to those terms. For copies of these
+// licenses and more information, see the COPYRIGHT file in this distribution's top-level directory.
 
-#![feature(arbitrary_self_types, extern_types, rust_2018_preview)]
+#![feature(arbitrary_self_types, extern_types)]
 #![no_std]
 
 extern crate libc;
@@ -26,17 +25,17 @@ mod mtlrender_pass;
 mod mtlrender_pipeline;
 mod mtlresource;
 
-pub use mtlblit_command_encoder::*;
-pub use mtlbuffer::*;
-pub use mtlcommand_buffer::*;
-pub use mtlcommand_encoder::*;
-pub use mtlcommand_queue::*;
-pub use mtlcompile_options::*;
-pub use mtldevice::*;
-pub use mtldrawable::*;
-pub use mtllibrary::*;
-pub use mtlpixel_format::*;
-pub use mtlrender_command_encoder::*;
-pub use mtlrender_pass::*;
-pub use mtlrender_pipeline::*;
-pub use mtlresource::*;
+pub use crate::mtlblit_command_encoder::*;
+pub use crate::mtlbuffer::*;
+pub use crate::mtlcommand_buffer::*;
+pub use crate::mtlcommand_encoder::*;
+pub use crate::mtlcommand_queue::*;
+pub use crate::mtlcompile_options::*;
+pub use crate::mtldevice::*;
+pub use crate::mtldrawable::*;
+pub use crate::mtllibrary::*;
+pub use crate::mtlpixel_format::*;
+pub use crate::mtlrender_command_encoder::*;
+pub use crate::mtlrender_pass::*;
+pub use crate::mtlrender_pipeline::*;
+pub use crate::mtlresource::*;

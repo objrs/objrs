@@ -1,8 +1,7 @@
-# The contents of this file is licensed by its authors and copyright holders under the Apache
-# License (Version 2.0), MIT license, or Mozilla Public License (Version 2.0), at your option. The
-# contents of this file may not be copied, modified, or distributed except according to those terms.
-# See the COPYRIGHT file at the top-level directory of this distribution for copies of these
-# licenses and more information.
+# This file and its contents are licensed by their authors and copyright holders under the Apache
+# License (Version 2.0), MIT license, or Mozilla Public License (Version 2.0), at your option, and
+# may not be copied, modified, or distributed except according to those terms. For copies of these
+# licenses and more information, see the COPYRIGHT file in this distribution's top-level directory.
 
 [workspace]
 members = [
@@ -15,14 +14,16 @@ members = [
   "frameworks/metal",
   "frameworks/metal_kit",
   "macros",
-  "runtime",
-  "test",
+  "tiny_test",
 ]
+
+exclude = ["test"]
 
 [package]
 name = "objrs"
 version = "0.0.2"
 authors = ["Michael Bradshaw <mjbshaw@gmail.com>"]
+edition = "2018"
 license = "Apache-2.0 OR MIT OR MPL-2.0"
 description = "Objective-Rust: the unholy union of Rust and Objective-C."
 repository = "https://gitlab.com/objrs/objrs"
@@ -40,10 +41,10 @@ path = "src/lib.rs"
 doc = false
 
 [features]
-use_std = []
-default = ["use_std"]
+alloc = []
+default = ["std"]
+std = ["alloc"]
 
 [dependencies]
 libc = { version = "0.2", default-features = false }
 objrs_macros = { path = "macros", version = "0.0.2" }
-objrs_runtime = { path = "runtime", version = "0.0.2" }

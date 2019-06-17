@@ -1,8 +1,7 @@
-// The contents of this file is licensed by its authors and copyright holders under the Apache
-// License (Version 2.0), MIT license, or Mozilla Public License (Version 2.0), at your option. The
-// contents of this file may not be copied, modified, or distributed except according to those
-// terms. See the COPYRIGHT file at the top-level directory of this distribution for copies of these
-// licenses and more information.
+// This file and its contents are licensed by their authors and copyright holders under the Apache
+// License (Version 2.0), MIT license, or Mozilla Public License (Version 2.0), at your option, and
+// may not be copied, modified, or distributed except according to those terms. For copies of these
+// licenses and more information, see the COPYRIGHT file in this distribution's top-level directory.
 
 #![feature(proc_macro_diagnostic)]
 #![recursion_limit = "128"]
@@ -10,11 +9,11 @@
 extern crate core;
 extern crate proc_macro;
 extern crate proc_macro2;
-#[macro_use]
 extern crate quote;
 extern crate syn;
 
 use proc_macro2::Span;
+use quote::quote;
 use syn::{parse2, punctuated::Punctuated, spanned::Spanned, token::Comma, LitByteStr, LitStr};
 
 // TODO: pull this out into a separate library that can be shared between this crate and /macros.
@@ -80,7 +79,7 @@ fn make_literal(mut value: String) -> proc_macro2::TokenStream {
     bytes_export_name = ["\x01L_.str.__objrs_str.", random_id].concat();
   }
 
-  return quote!{{
+  return quote! {{
       extern crate objrs_frameworks_foundation as __objrs_root;
 
       #[link_section = #bytes_link_section]
@@ -109,7 +108,14 @@ pub fn nsstring(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
   match parse2::<LitStr>(input.into()) {
     Ok(value) => return make_literal(value.value()).into(),
     Err(err) => {
-      span.unstable().error(err.to_string()).note("nsstring! requires a single string literal. Examples: nsstring!(\"Hello, world!\"); nsstring!(\"こんにちは世界！\"); nsstring!(r#\"नमस्ते दुनिया!\"#);").emit();
+      span
+        .unstable()
+        .error(err.to_string())
+        .note(
+          "nsstring! requires a single string literal. Examples: nsstring!(\"Hello, world!\"); \
+           nsstring!(\"こんにちは世界！\"); nsstring!(r#\"नमस्ते दुनिया!\"#);",
+        )
+        .emit();
       // Return an empty NSString. This should help other diagnostic messages.
       return make_literal(String::new()).into();
     }

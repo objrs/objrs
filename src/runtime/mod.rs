@@ -1,11 +1,7 @@
-// The contents of this file is licensed by its authors and copyright holders under the Apache
-// License (Version 2.0), MIT license, or Mozilla Public License (Version 2.0), at your option. The
-// contents of this file may not be copied, modified, or distributed except according to those
-// terms. See the COPYRIGHT file at the top-level directory of this distribution for copies of these
-// licenses and more information.
-
-#![feature(global_asm, untagged_unions)]
-#![no_std]
+// This file and its contents are licensed by their authors and copyright holders under the Apache
+// License (Version 2.0), MIT license, or Mozilla Public License (Version 2.0), at your option, and
+// may not be copied, modified, or distributed except according to those terms. For copies of these
+// licenses and more information, see the COPYRIGHT file in this distribution's top-level directory.
 
 mod message;
 mod objc;
@@ -15,22 +11,13 @@ mod objc_internal;
 mod objc_runtime_new;
 mod runtime;
 
-pub use message::*;
-pub use objc::*;
-pub use objc_abi::*;
-pub use objc_exception::*;
-pub use objc_internal::*;
-pub use objc_runtime_new::*;
-pub use runtime::*;
-
-extern crate libc;
-
-// pub type c_void = libc::c_void
-// pub type c_char = libc::c_char
-// pub type c_long_double =
-// pub type c_float_complex =
-// pub type c_double_complex =
-// pub type c_long_double_complex =
+pub use crate::runtime::message::*;
+pub use crate::runtime::objc::*;
+pub use crate::runtime::objc_abi::*;
+pub use crate::runtime::objc_exception::*;
+pub use crate::runtime::objc_internal::*;
+pub use crate::runtime::objc_runtime_new::*;
+pub use crate::runtime::runtime::*;
 
 #[doc(hidden)]
 pub mod __objrs {

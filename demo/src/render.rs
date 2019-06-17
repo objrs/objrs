@@ -1,18 +1,18 @@
-// The contents of this file is licensed by its authors and copyright holders under the Apache
-// License (Version 2.0), MIT license, or Mozilla Public License (Version 2.0), at your option. The
-// contents of this file may not be copied, modified, or distributed except according to those
-// terms. See the COPYRIGHT file at the top-level directory of this distribution for copies of these
-// licenses and more information.
+// This file and its contents are licensed by their authors and copyright holders under the Apache
+// License (Version 2.0), MIT license, or Mozilla Public License (Version 2.0), at your option, and
+// may not be copied, modified, or distributed except according to those terms. For copies of these
+// licenses and more information, see the COPYRIGHT file in this distribution's top-level directory.
 
+use crate::mesh::load_triangles;
 use core;
-use mesh::load_triangles;
-use objrs::objrs;
+use objrs::{objrs, Id};
 use objrs_frameworks_core_graphics::CGSize;
 use objrs_frameworks_foundation::{nsstring, NSObject, NSString};
 use objrs_frameworks_metal::{
-  MTLBlitCommandEncoder, MTLBufferId, MTLClearColorMake, MTLCommandBuffer, MTLCommandQueue,
-  MTLCommandQueueId, MTLDevice, MTLDeviceId, MTLLibrary, MTLPrimitiveType, MTLRenderCommandEncoder,
-  MTLRenderPipelineDescriptor, MTLRenderPipelineStateId, MTLResourceOptions, MTLViewport,
+  MTLBlitCommandEncoder, MTLBlitCommandEncoderExt, MTLBuffer, MTLClearColorMake, MTLCommandBuffer,
+  MTLCommandQueue, MTLDevice, MTLDeviceExt, MTLLibrary, MTLPrimitiveType, MTLRenderCommandEncoder,
+  MTLRenderCommandEncoderExt, MTLRenderPipelineDescriptor, MTLRenderPipelineState,
+  MTLResourceOptions, MTLViewport,
 };
 use objrs_frameworks_metal_kit::{MTKView, MTKViewDelegate};
 
@@ -89,9 +89,9 @@ struct VertexUniforms {
 
 fn gpu_buffer_with_triangles(
   triangles: &[[[f32; 2]; 3]],
-  device: &mut MTLDeviceId,
-  command_queue: &mut MTLCommandQueueId,
-) -> Result<objrs::Strong<MTLBufferId>, String> {
+  device: &mut Id<dyn MTLDevice>,
+  command_queue: &mut Id<dyn MTLCommandQueue>,
+) -> Result<objrs::Strong<Id<dyn MTLBuffer>>, String> {
   let cpu_buffer = device
     .new_buffer_with_slice_options(triangles, MTLResourceOptions::CPU_CACHE_MODE_WRITE_COMBINED)
     .ok_or(String::from("Failed to create the CPU buffer"))?;
@@ -120,9 +120,9 @@ fn gpu_buffer_with_triangles(
 #[objrs(class, super = NSObject)]
 pub struct Renderer {
   drawable_size: [f32; 2],
-  pipeline_state: Option<objrs::Strong<MTLRenderPipelineStateId>>,
-  command_queue: Option<objrs::Strong<MTLCommandQueueId>>,
-  triangles: Option<objrs::Strong<MTLBufferId>>,
+  pipeline_state: Option<objrs::Strong<Id<dyn MTLRenderPipelineState>>>,
+  command_queue: Option<objrs::Strong<Id<dyn MTLCommandQueue>>>,
+  triangles: Option<objrs::Strong<Id<dyn MTLBuffer>>>,
 }
 
 #[objrs(impl)]
@@ -240,7 +240,7 @@ impl MTKViewDelegate for Renderer {
         );
         render_encoder.set_render_pipeline_state(pipeline_state);
 
-        let triangles: Option<&mut MTLBufferId> = self.triangles.as_mut().map(|x| &mut **x);
+        let triangles: Option<&mut Id<dyn MTLBuffer>> = self.triangles.as_mut().map(|x| &mut **x);
 
         let mut viewport_scale: [f32; 2] = [1.0, 1.0];
         if drawable_size[0] < drawable_size[1] {
@@ -250,8 +250,10 @@ impl MTKViewDelegate for Renderer {
         }
 
         let mouse_pos: [f32; 2] = [
-          ((scale_factor * pos.x) as f32 - drawable_size[0]) / (drawable_size[0] * viewport_scale[0]),
-          ((scale_factor * pos.y) as f32 - drawable_size[1]) / (drawable_size[1] * viewport_scale[1]),
+          ((scale_factor * pos.x) as f32 - drawable_size[0])
+            / (drawable_size[0] * viewport_scale[0]),
+          ((scale_factor * pos.y) as f32 - drawable_size[1])
+            / (drawable_size[1] * viewport_scale[1]),
         ];
 
         let vertex_uniforms = VertexUniforms {

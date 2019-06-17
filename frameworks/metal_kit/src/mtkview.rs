@@ -1,15 +1,14 @@
-// The contents of this file is licensed by its authors and copyright holders under the Apache
-// License (Version 2.0), MIT license, or Mozilla Public License (Version 2.0), at your option. The
-// contents of this file may not be copied, modified, or distributed except according to those
-// terms. See the COPYRIGHT file at the top-level directory of this distribution for copies of these
-// licenses and more information.
+// This file and its contents are licensed by their authors and copyright holders under the Apache
+// License (Version 2.0), MIT license, or Mozilla Public License (Version 2.0), at your option, and
+// may not be copied, modified, or distributed except according to those terms. For copies of these
+// licenses and more information, see the COPYRIGHT file in this distribution's top-level directory.
 
-use mtkview_delegate::MTKViewDelegate;
-use objrs::objrs;
+use crate::mtkview_delegate::MTKViewDelegate;
+use objrs::{objrs, Id};
 
 use objrs_frameworks_core_graphics::{CGRect, CGSize};
 use objrs_frameworks_metal::{
-  MTLClearColor, MTLDeviceId, MTLDrawableId, MTLPixelFormat, MTLRenderPassDescriptor,
+  MTLClearColor, MTLDevice, MTLDrawable, MTLPixelFormat, MTLRenderPassDescriptor,
 };
 
 #[cfg(target_os = "macos")]
@@ -38,12 +37,12 @@ impl MTKView {
   pub fn init_with_frame_device(
     self: objrs::Alloc<MTKView>,
     frame: CGRect,
-    device: Option<objrs::Strong<MTLDeviceId>>,
+    device: Option<objrs::Strong<Id<dyn MTLDevice>>>,
   ) -> objrs::Strong<MTKView> {
   }
 
   #[objrs(selector = "device")]
-  pub fn device(&mut self) -> Option<&mut MTLDeviceId> {}
+  pub fn device(&mut self) -> Option<&mut Id<dyn MTLDevice>> {}
 
   // TODO: the delegate is weakly held.
   #[objrs(selector = "setDelegate:")]
@@ -70,7 +69,7 @@ impl MTKView {
 
   // TODO: this really returns a id<CAMetalDrawable>.
   #[objrs(selector = "currentDrawable")]
-  pub fn current_drawable(&mut self) -> Option<&mut MTLDrawableId> {}
+  pub fn current_drawable(&mut self) -> Option<&mut Id<dyn MTLDrawable>> {}
 
   #[objrs(selector = "drawableSize")]
   pub fn drawable_size(&self) -> CGSize {}

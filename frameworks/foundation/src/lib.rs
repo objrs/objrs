@@ -1,10 +1,9 @@
-// The contents of this file is licensed by its authors and copyright holders under the Apache
-// License (Version 2.0), MIT license, or Mozilla Public License (Version 2.0), at your option. The
-// contents of this file may not be copied, modified, or distributed except according to those
-// terms. See the COPYRIGHT file at the top-level directory of this distribution for copies of these
-// licenses and more information.
+// This file and its contents are licensed by their authors and copyright holders under the Apache
+// License (Version 2.0), MIT license, or Mozilla Public License (Version 2.0), at your option, and
+// may not be copied, modified, or distributed except according to those terms. For copies of these
+// licenses and more information, see the COPYRIGHT file in this distribution's top-level directory.
 
-#![feature(extern_types, rust_2018_preview)]
+#![feature(extern_types)]
 #![no_std]
 
 extern crate objrs;
@@ -18,18 +17,18 @@ mod nsobject;
 mod nsprocess_info;
 mod nsstring;
 
-pub use nsarray::*;
-pub use nserror::*;
-pub use nsmutable_string::*;
-pub use nsnotification::*;
-pub use nsobject::*;
-pub use nsprocess_info::*;
-pub use nsstring::*;
+pub use crate::nsarray::*;
+pub use crate::nserror::*;
+pub use crate::nsmutable_string::*;
+pub use crate::nsnotification::*;
+pub use crate::nsobject::*;
+pub use crate::nsprocess_info::*;
+pub use crate::nsstring::*;
 
 #[doc(hidden)]
 pub mod __objrs {
   pub extern crate objrs;
   pub use objrs::__objrs::*;
 
-  pub use nsstring::__objrs::*;
+  pub use crate::nsstring::__objrs::*;
 }

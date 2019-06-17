@@ -1,14 +1,13 @@
-// The contents of this file is licensed by its authors and copyright holders under the Apache
-// License (Version 2.0), MIT license, or Mozilla Public License (Version 2.0), at your option. The
-// contents of this file may not be copied, modified, or distributed except according to those
-// terms. See the COPYRIGHT file at the top-level directory of this distribution for copies of these
-// licenses and more information.
+// This file and its contents are licensed by their authors and copyright holders under the Apache
+// License (Version 2.0), MIT license, or Mozilla Public License (Version 2.0), at your option, and
+// may not be copied, modified, or distributed except according to those terms. For copies of these
+// licenses and more information, see the COPYRIGHT file in this distribution's top-level directory.
 
 // See https://github.com/opensource-apple/objc4/blob/master/runtime/objc-runtime-new.h
 
 extern crate libc;
 
-use objc;
+use crate::runtime::objc;
 
 #[cfg(target_pointer_width = "64")]
 #[allow(non_camel_case_types)]
@@ -22,7 +21,7 @@ pub type mask_t = u16;
 #[allow(non_camel_case_types)]
 pub struct bucket_t {
   pub key: usize,
-  pub imp: objc::IMP,
+  pub imp: *mut objc::Imp,
 }
 
 #[repr(C)]
@@ -37,9 +36,9 @@ pub struct cache_t {
 #[repr(C)]
 #[allow(non_camel_case_types)]
 pub struct method_t {
-  pub name: objc::SEL,
+  pub name: *mut objc::Sel,
   pub types: *const libc::c_char,
-  pub imp: objc::IMP,
+  pub imp: *mut objc::Imp,
 }
 
 #[repr(C)]
@@ -172,16 +171,16 @@ pub struct class_rw_t {
   pub methods: method_array_t,
   pub properties: property_array_t,
   pub protocols: protocol_array_t,
-  pub first_subclass: objc::Class,
-  pub next_sibling_class: objc::Class,
+  pub first_subclass: *mut objc::Class,
+  pub next_sibling_class: *mut objc::Class,
   pub demangled_name: *mut libc::c_char,
 }
 
 #[repr(C)]
 #[allow(non_camel_case_types)]
 pub struct objc_class {
-  pub isa: objc::Class,
-  pub superclass: objc::Class,
+  pub isa: *mut objc::Class,
+  pub superclass: *mut objc::Class,
   pub cache: cache_t,
   // This should be a usize (to match the C code), but due to Rust issue #54709, we have to use a
   // pointer type.
@@ -202,21 +201,21 @@ pub struct category_t {
   pub class_methods: *mut method_list_t,
   pub protocols: *mut protocol_list_t,
   pub instance_properties: *mut property_list_t,
-  // objc-runtime-new.h is missing the following properties. See_category_t and CategorynfABITy in https://github.com/llvm-mirror/clang/blob/master/lib/CodeGen/CGObjCMac.cpp for how they get generated (and observe the generated assembly).
+  // objc-runtime-new.h is missing the following properties. See `_category_t` and `CategorynfABITy` in https://github.com/llvm-mirror/clang/blob/master/lib/CodeGen/CGObjCMac.cpp for how they get generated (and observe the generated assembly).
   pub class_properties: *mut property_list_t,
   pub size: u32,
 }
 
-#[repr(C)]
-#[allow(non_camel_case_types)]
-pub struct objc_super2 {
-  pub receiver: objc::id,
-  pub current_class: objc::Class,
-}
+// #[repr(C)]
+// #[allow(non_camel_case_types)]
+// pub struct objc_super2 {
+//   pub receiver: *mut objc::Id,
+//   pub current_class: *mut objc::Class,
+// }
 
-#[repr(C)]
-#[allow(non_camel_case_types)]
-pub struct message_ref_t {
-  pub imp: objc::IMP,
-  pub sel: objc::SEL,
-}
+// #[repr(C)]
+// #[allow(non_camel_case_types)]
+// pub struct message_ref_t {
+//   pub imp: *mut objc::Imp,
+//   pub sel: *mut objc::Sel,
+// }

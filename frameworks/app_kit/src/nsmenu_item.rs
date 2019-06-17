@@ -1,10 +1,9 @@
-// The contents of this file is licensed by its authors and copyright holders under the Apache
-// License (Version 2.0), MIT license, or Mozilla Public License (Version 2.0), at your option. The
-// contents of this file may not be copied, modified, or distributed except according to those
-// terms. See the COPYRIGHT file at the top-level directory of this distribution for copies of these
-// licenses and more information.
+// This file and its contents are licensed by their authors and copyright holders under the Apache
+// License (Version 2.0), MIT license, or Mozilla Public License (Version 2.0), at your option, and
+// may not be copied, modified, or distributed except according to those terms. For copies of these
+// licenses and more information, see the COPYRIGHT file in this distribution's top-level directory.
 
-use nsmenu::NSMenu;
+use crate::nsmenu::NSMenu;
 use objrs::objrs;
 use objrs_frameworks_foundation::{NSObject, NSString};
 
@@ -25,7 +24,7 @@ impl NSMenuItem {
   pub fn init_with_title_action_key_equivalent(
     self: objrs::Alloc<NSMenuItem>,
     title: &NSString,
-    action: objrs::runtime::SEL,
+    action: &objrs::Sel,
     key_equivalent: &NSString,
   ) -> objrs::Strong<NSMenuItem> {
   }

@@ -1,19 +1,13 @@
-// The contents of this file is licensed by its authors and copyright holders under the Apache
-// License (Version 2.0), MIT license, or Mozilla Public License (Version 2.0), at your option. The
-// contents of this file may not be copied, modified, or distributed except according to those
-// terms. See the COPYRIGHT file at the top-level directory of this distribution for copies of these
-// licenses and more information.
-
-extern crate core;
+// This file and its contents are licensed by their authors and copyright holders under the Apache
+// License (Version 2.0), MIT license, or Mozilla Public License (Version 2.0), at your option, and
+// may not be copied, modified, or distributed except according to those terms. For copies of these
+// licenses and more information, see the COPYRIGHT file in this distribution's top-level directory.
 
 // For Objective-C property attributes, see https://github.com/llvm-mirror/clang/blob/master/lib/Parse/ParseObjc.cpp
 
 use proc_macro2::Span;
-use syn::{
-Ident, LitStr, Type,
-};
 use syn::parse::{Parse, ParseStream};
-use util;
+use syn::{Ident, LitStr, Type};
 
 pub enum ReadWrite {
   ReadOnly(Span),
@@ -62,10 +56,12 @@ pub struct PropertyAttr {
 // post-parse validation step.
 impl Parse for PropertyAttr {
   fn parse(input: ParseStream) -> syn::parse::Result<Self> {
-    use syn::token::{Comma, Paren, Colon};
+    use crate::parse::attr::{
+      assign, atomic, class, copy, getter, nonatomic, nonnull, null_resettable, null_unspecified,
+      nullable, readonly, readwrite, retain, setter, strong, unsafe_unretained, weak, KV,
+    };
     use syn::parenthesized;
-    use util::{KV, class,
-    readonly, readwrite, assign, unsafe_unretained, copy, weak, strong, retain, nullable, nonnull, null_unspecified, atomic, nonatomic, null_resettable, getter, setter};
+    use syn::token::{Colon, Comma, Paren};
 
     let content;
     let _: Paren = parenthesized!(content in input);
@@ -94,14 +90,15 @@ impl Parse for PropertyAttr {
     let _: Comma = input.parse()?;
 
     let mut kv = KV::new(input);
-    
+
     let class: Option<Span> = kv.parse::<class, _>()?;
 
     // use util::OptionExt;
     // let read_write = kv.parse::<readonly, Option<Span>>()?.map(ReadWrite::ReadOnly)
     //   .or_else_parse(|| kv.parse::<readwrite, _>().map(ReadWrite::ReadWrite))?;
     let readonly: Option<Span> = kv.parse::<readonly, _>()?;
-    let readwrite: Option<Span> = if readonly.is_some() { None } else { kv.parse::<readwrite, _>()? };
+    let readwrite: Option<Span> =
+      if readonly.is_some() { None } else { kv.parse::<readwrite, _>()? };
     let read_write = readonly.map(ReadWrite::ReadOnly).or(readwrite.map(ReadWrite::ReadWrite));
 
     // let readonly: Option<Span> = kv.parse::<readonly, _>()?;
@@ -116,7 +113,7 @@ impl Parse for PropertyAttr {
     // }
 
     let assign: Option<Span> = kv.parse::<assign, _>()?;
-    
+
     let unsafe_unretained: Option<Span> = kv.parse::<unsafe_unretained, _>()?;
 
     let copy: Option<Span>;
@@ -131,13 +128,13 @@ impl Parse for PropertyAttr {
       let weak: Option<Span> = kv.parse::<weak, _>()?;
       let strong: Option<Span> = if weak.is_some() { None } else { kv.parse::<strong, _>()? };
       weak_strong = weak.map(WeakStrong::Weak).or(strong.map(WeakStrong::Strong));
-      // if weak.is_some() {
-      //   weak_strong = Some(WeakStrong::Weak(ident));
-      // } else if strong.is_some() {
-      //   weak_strong = Some(WeakStrong::Strong(ident));
-      // } else {
-      //   weak_strong = None;
-      // }
+    // if weak.is_some() {
+    //   weak_strong = Some(WeakStrong::Weak(ident));
+    // } else if strong.is_some() {
+    //   weak_strong = Some(WeakStrong::Strong(ident));
+    // } else {
+    //   weak_strong = None;
+    // }
     } else {
       weak_strong = None;
     }
@@ -162,7 +159,8 @@ impl Parse for PropertyAttr {
     } else {
       null_unspecified = None;
     }
-    let nullability = nullable.map(Nullability::Nullable)
+    let nullability = nullable
+      .map(Nullability::Nullable)
       .or(nonnull.map(Nullability::Nonnull))
       .or(null_unspecified.map(Nullability::Unspecified));
     // if nullable.is_some() {
@@ -192,26 +190,27 @@ impl Parse for PropertyAttr {
     let setter: Option<LitStr> = kv.parse::<setter, _>()?;
 
     kv.eof()?;
-    return Ok(
-      PropertyAttr {
-        name: name,
-        ty: ty,
-        class: class,
-        read_write: read_write,
-        nullability: nullability,
-        weak_strong: weak_strong,
-        atomicity: atomicity,
-        retain: retain,
-        null_resettable: null_resettable,
-        getter: getter,
-        setter: setter,
-      }
-    );
+    return Ok(PropertyAttr {
+      name: name,
+      ty: ty,
+      class: class,
+      read_write: read_write,
+      nullability: nullability,
+      weak_strong: weak_strong,
+      atomicity: atomicity,
+      retain: retain,
+      null_resettable: null_resettable,
+      getter: getter,
+      setter: setter,
+    });
   }
 }
 
-impl util::Value for PropertyAttr {
-  fn parse(input: ParseStream, _: Span) -> syn::parse::Result<Self> where Self: Sized {
+impl crate::parse::attr::Value for PropertyAttr {
+  fn parse(input: ParseStream, _: Span) -> syn::parse::Result<Self>
+  where
+    Self: Sized,
+  {
     use syn::parenthesized;
 
     let content;

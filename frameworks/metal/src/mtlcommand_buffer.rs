@@ -1,29 +1,28 @@
-// The contents of this file is licensed by its authors and copyright holders under the Apache
-// License (Version 2.0), MIT license, or Mozilla Public License (Version 2.0), at your option. The
-// contents of this file may not be copied, modified, or distributed except according to those
-// terms. See the COPYRIGHT file at the top-level directory of this distribution for copies of these
-// licenses and more information.
+// This file and its contents are licensed by their authors and copyright holders under the Apache
+// License (Version 2.0), MIT license, or Mozilla Public License (Version 2.0), at your option, and
+// may not be copied, modified, or distributed except according to those terms. For copies of these
+// licenses and more information, see the COPYRIGHT file in this distribution's top-level directory.
 
-use mtlblit_command_encoder::MTLBlitCommandEncoderId;
-use mtldrawable::MTLDrawableId;
-use mtlrender_command_encoder::MTLRenderCommandEncoderId;
-use mtlrender_pass::MTLRenderPassDescriptor;
-use objrs::objrs;
+use crate::mtlblit_command_encoder::MTLBlitCommandEncoder;
+use crate::mtldrawable::MTLDrawable;
+use crate::mtlrender_command_encoder::MTLRenderCommandEncoder;
+use crate::mtlrender_pass::MTLRenderPassDescriptor;
+use objrs::{objrs, Id};
 
-#[objrs(protocol, id_ident = MTLCommandBufferId)]
+#[objrs(protocol)]
 #[link(name = "Metal", kind = "framework")]
 pub trait MTLCommandBuffer {
   #[objrs(selector = "blitCommandEncoder")]
-  fn blit_command_encoder(&mut self) -> Option<&mut MTLBlitCommandEncoderId>;
+  fn blit_command_encoder(&mut self) -> Option<&mut Id<dyn MTLBlitCommandEncoder>>;
 
   #[objrs(selector = "renderCommandEncoderWithDescriptor:")]
   fn render_command_encoder_with_descriptor<'a>(
     &'a mut self,
     render_pass_descriptor: &mut MTLRenderPassDescriptor,
-  ) -> Option<&'a mut MTLRenderCommandEncoderId>;
+  ) -> Option<&'a mut Id<dyn MTLRenderCommandEncoder>>;
 
   #[objrs(selector = "presentDrawable:")]
-  fn present_drawable(&mut self, drawable: &mut MTLDrawableId);
+  fn present_drawable(&mut self, drawable: &mut Id<dyn MTLDrawable>);
 
   #[objrs(selector = "commit")]
   fn commit(&mut self);

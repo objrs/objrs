@@ -1,22 +1,21 @@
-// The contents of this file is licensed by its authors and copyright holders under the Apache
-// License (Version 2.0), MIT license, or Mozilla Public License (Version 2.0), at your option. The
-// contents of this file may not be copied, modified, or distributed except according to those
-// terms. See the COPYRIGHT file at the top-level directory of this distribution for copies of these
-// licenses and more information.
+// This file and its contents are licensed by their authors and copyright holders under the Apache
+// License (Version 2.0), MIT license, or Mozilla Public License (Version 2.0), at your option, and
+// may not be copied, modified, or distributed except according to those terms. For copies of these
+// licenses and more information, see the COPYRIGHT file in this distribution's top-level directory.
 
-use objrs::objrs;
+use objrs::{objrs, Id};
 use objrs_frameworks_foundation::NSString;
 
-#[objrs(protocol, id_ident = MTLFunctionId)]
+#[objrs(protocol)]
 #[link(name = "Metal", kind = "framework")]
 pub trait MTLFunction {}
 
-#[objrs(protocol, id_ident = MTLLibraryId)]
+#[objrs(protocol)]
 #[link(name = "Metal", kind = "framework")]
 pub trait MTLLibrary {
   #[objrs(selector = "newFunctionWithName:")]
   fn new_function_with_name(
     &mut self,
     function_name: &NSString,
-  ) -> Option<objrs::Strong<MTLFunctionId>>;
+  ) -> Option<objrs::Strong<Id<dyn MTLFunction>>>;
 }

@@ -1,12 +1,12 @@
-// The contents of this file is licensed by its authors and copyright holders under the Apache
-// License (Version 2.0), MIT license, or Mozilla Public License (Version 2.0), at your option. The
-// contents of this file may not be copied, modified, or distributed except according to those
-// terms. See the COPYRIGHT file at the top-level directory of this distribution for copies of these
-// licenses and more information.
+// This file and its contents are licensed by their authors and copyright holders under the Apache
+// License (Version 2.0), MIT license, or Mozilla Public License (Version 2.0), at your option, and
+// may not be copied, modified, or distributed except according to those terms. For copies of these
+// licenses and more information, see the COPYRIGHT file in this distribution's top-level directory.
 
 extern crate core;
 extern crate libc;
-extern crate objrs_runtime;
+
+use crate::runtime;
 
 struct EncodingIter<'a>(&'a u8);
 
@@ -79,7 +79,7 @@ impl<'a> EncodingIter<'a> {
     let mut value = 0;
     loop {
       match self.peek_byte() {
-        byte @ b'0'...b'9' => {
+        byte @ b'0'..=b'9' => {
           value *= 10;
           value += (byte - b'0') as usize;
           self.step_byte();
@@ -155,9 +155,9 @@ impl<'a> core::iter::Iterator for EncodingIter<'a> {
       b'd' => return Some(Encoding::exact(core::mem::size_of::<libc::c_double>(), byte)),
       b'B' => return Some(Encoding::exact(core::mem::size_of::<bool>(), byte)),
       b'*' => return Some(Encoding::exact(core::mem::size_of::<*const libc::c_char>(), byte)),
-      b'@' => return Some(Encoding::exact(core::mem::size_of::<objrs_runtime::id>(), byte)),
-      b'#' => return Some(Encoding::exact(core::mem::size_of::<objrs_runtime::Class>(), byte)),
-      b':' => return Some(Encoding::exact(core::mem::size_of::<objrs_runtime::SEL>(), byte)),
+      b'@' => return Some(Encoding::exact(core::mem::size_of::<*const runtime::Id>(), byte)),
+      b'#' => return Some(Encoding::exact(core::mem::size_of::<*const runtime::Class>(), byte)),
+      b':' => return Some(Encoding::exact(core::mem::size_of::<*const runtime::Sel>(), byte)),
       b'?' => return Some(Encoding::full_range(byte)),
 
       b']' | b'}' | b')' => return None,
@@ -167,35 +167,21 @@ impl<'a> core::iter::Iterator for EncodingIter<'a> {
   }
 }
 
-pub unsafe fn sane_return_type<T: core::any::Any>(method: objrs_runtime::Method) -> bool {
-  if method.is_null() {
-    return true;
-  }
-
-  let encoding = objrs_runtime::method_copyReturnType(method) as *mut u8;
-  if encoding.is_null() {
-    return true;
-  }
-
-  let sane = type_approximately_matches_encoding::<T>(&*encoding);
+pub unsafe fn sane_return_type<T: core::any::Any>(
+  method: core::ptr::NonNull<runtime::Method>,
+) -> bool {
+  let encoding = runtime::method_copyReturnType(method).as_mut().as_ptr();
+  let sane = type_approximately_matches_encoding::<T>(&*(encoding as *const _ as *const u8));
   libc::free(encoding as *mut libc::c_void);
   return sane;
 }
 
 pub unsafe fn sane_argument_type<T: core::any::Any>(
-  method: objrs_runtime::Method,
+  method: core::ptr::NonNull<runtime::Method>,
   index: libc::c_uint,
 ) -> bool {
-  if method.is_null() {
-    return true;
-  }
-
-  let encoding = objrs_runtime::method_copyArgumentType(method, index) as *mut u8;
-  if encoding.is_null() {
-    return true;
-  }
-
-  let sane = type_approximately_matches_encoding::<T>(&*encoding);
+  let encoding = runtime::method_copyArgumentType(method, index).as_mut().as_ptr();
+  let sane = type_approximately_matches_encoding::<T>(&*(encoding as *const _ as *const u8));
   libc::free(encoding as *mut libc::c_void);
   return sane;
 }
@@ -291,9 +277,9 @@ fn test_type_approximately_matches_encoding() {
   expect_match!(b"d\0", f64);
   expect_match!(b"B\0", bool, u8, i8);
   expect_match!(b"*\0", *const libc::c_char, usize, isize);
-  expect_match!(b"@\0", objrs_runtime::id, usize, isize);
-  expect_match!(b"#\0", objrs_runtime::Class, usize, isize);
-  expect_match!(b":\0", objrs_runtime::SEL, usize, isize);
+  expect_match!(b"@\0", *const runtime::Id, usize, isize);
+  expect_match!(b"#\0", *const runtime::Class, usize, isize);
+  expect_match!(b":\0", *const runtime::Sel, usize, isize);
 
   expect_no_match!(
     b"^v\0",
@@ -685,9 +671,9 @@ fn test_minimum_size_iter() {
   assert_exact!(b"B\0", bool);
   assert_exact!(b"v\0", 0);
   assert_exact!(b"*\0", *const libc::c_char);
-  assert_exact!(b"@\0", objrs_runtime::id);
-  assert_exact!(b"#\0", objrs_runtime::Class);
-  assert_exact!(b":\0", objrs_runtime::SEL);
+  assert_exact!(b"@\0", *const runtime::Id);
+  assert_exact!(b"#\0", *const runtime::Class);
+  assert_exact!(b":\0", *const runtime::Sel);
 
   assert_exact!(b"b0\0", 0);
   assert_exact!(b"b1\0", 1);
@@ -728,7 +714,7 @@ fn test_minimum_size_iter() {
   assert_exact!(b"^{example=@*i}\0", *const u8);
   assert_exact!(b"^^{example}\0", *const u8);
   assert_exact!(b"r^{opaqueCMFormatDescription=}\0", b'^', *const u8);
-  assert_min!(b"{example=@*i}\0", objrs_runtime::id, *const libc::c_char, libc::c_int);
+  assert_min!(b"{example=@*i}\0", *const runtime::Id, *const libc::c_char, libc::c_int);
   assert_min!(b"{CGRect={CGPoint=dd}{CGSize=dd}}\0", 32);
   assert_min!(b"{CGAffineTransform=dddddd}\0", 48);
   assert_min!(b"{AudioStreamBasicDescription=dIIIIIIII}\0", 40);

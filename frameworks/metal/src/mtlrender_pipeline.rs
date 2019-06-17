@@ -1,12 +1,11 @@
-// The contents of this file is licensed by its authors and copyright holders under the Apache
-// License (Version 2.0), MIT license, or Mozilla Public License (Version 2.0), at your option. The
-// contents of this file may not be copied, modified, or distributed except according to those
-// terms. See the COPYRIGHT file at the top-level directory of this distribution for copies of these
-// licenses and more information.
+// This file and its contents are licensed by their authors and copyright holders under the Apache
+// License (Version 2.0), MIT license, or Mozilla Public License (Version 2.0), at your option, and
+// may not be copied, modified, or distributed except according to those terms. For copies of these
+// licenses and more information, see the COPYRIGHT file in this distribution's top-level directory.
 
-use mtllibrary::MTLFunctionId;
-use mtlpixel_format::MTLPixelFormat;
-use objrs::objrs;
+use crate::mtllibrary::MTLFunction;
+use crate::mtlpixel_format::MTLPixelFormat;
+use objrs::{objrs, Id};
 use objrs_frameworks_foundation::NSObject;
 
 #[objrs(class, super = NSObject)]
@@ -23,10 +22,17 @@ impl MTLRenderPipelineDescriptor {
   pub fn set_raster_sample_count(&mut self, raster_sample_count: usize) {}
 
   #[objrs(selector = "setVertexFunction:")]
-  pub fn set_vertex_function(&mut self, vertex_function: Option<objrs::Strong<MTLFunctionId>>) {}
+  pub fn set_vertex_function(
+    &mut self,
+    vertex_function: Option<objrs::Strong<Id<dyn MTLFunction>>>,
+  ) {
+  }
 
   #[objrs(selector = "setFragmentFunction:")]
-  pub fn set_fragment_function(&mut self, fragment_function: Option<objrs::Strong<MTLFunctionId>>) {
+  pub fn set_fragment_function(
+    &mut self,
+    fragment_function: Option<objrs::Strong<Id<dyn MTLFunction>>>,
+  ) {
   }
 
   #[objrs(selector = "colorAttachments")]
@@ -59,6 +65,6 @@ impl MTLRenderPipelineColorAttachmentDescriptorArray {
   }
 }
 
-#[objrs(protocol, id_ident = MTLRenderPipelineStateId)]
+#[objrs(protocol)]
 #[link(name = "Metal", kind = "framework")]
 pub trait MTLRenderPipelineState {}

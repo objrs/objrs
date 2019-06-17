@@ -1,11 +1,10 @@
-// The contents of this file is licensed by its authors and copyright holders under the Apache
-// License (Version 2.0), MIT license, or Mozilla Public License (Version 2.0), at your option. The
-// contents of this file may not be copied, modified, or distributed except according to those
-// terms. See the COPYRIGHT file at the top-level directory of this distribution for copies of these
-// licenses and more information.
+// This file and its contents are licensed by their authors and copyright holders under the Apache
+// License (Version 2.0), MIT license, or Mozilla Public License (Version 2.0), at your option, and
+// may not be copied, modified, or distributed except according to those terms. For copies of these
+// licenses and more information, see the COPYRIGHT file in this distribution's top-level directory.
 
-#![feature(rust_2018_preview, proc_macro_hygiene,)]
-
+#![feature(proc_macro_hygiene)]
+#![feature(extern_types)]
 extern crate core;
 extern crate objrs;
 extern crate objrs_frameworks_app_kit;
@@ -46,7 +45,7 @@ impl NSApplicationDelegate for AppDelegate {
     let mut window =
       NSWindow::window_with_content_view_controller(ViewController::new().into_super());
     window.set_title(nsstring!("Objective-Rust Demo"));
-    window.make_key_and_order_front(None);
+    window.make_key_and_order_front(0 as *mut _);
     self.window = Some(window);
 
     let mut app = NSApplication::shared_application();
@@ -127,5 +126,5 @@ fn run_app() {
 }
 
 fn main() {
-  objrs::runtime::autoreleasepool(run_app);
+  objrs::autoreleasepool(run_app);
 }

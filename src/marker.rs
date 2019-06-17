@@ -1,11 +1,9 @@
-// The contents of this file is licensed by its authors and copyright holders under the Apache
-// License (Version 2.0), MIT license, or Mozilla Public License (Version 2.0), at your option. The
-// contents of this file may not be copied, modified, or distributed except according to those
-// terms. See the COPYRIGHT file at the top-level directory of this distribution for copies of these
-// licenses and more information.
+// This file and its contents are licensed by their authors and copyright holders under the Apache
+// License (Version 2.0), MIT license, or Mozilla Public License (Version 2.0), at your option, and
+// may not be copied, modified, or distributed except according to those terms. For copies of these
+// licenses and more information, see the COPYRIGHT file in this distribution's top-level directory.
 
 extern crate core;
-extern crate objrs_runtime;
 
 pub unsafe trait Class {}
 
@@ -91,13 +89,16 @@ unsafe impl<T0: Zeroed, T1: Zeroed, T2: Zeroed> Zeroed for (T0, T1, T2) {}
 unsafe impl<T0: Zeroed, T1: Zeroed, T2: Zeroed, T3: Zeroed> Zeroed for (T0, T1, T2, T3) {}
 unsafe impl<T0: Zeroed, T1: Zeroed, T2: Zeroed, T3: Zeroed, T4: Zeroed> Zeroed
   for (T0, T1, T2, T3, T4)
-{}
+{
+}
 unsafe impl<T0: Zeroed, T1: Zeroed, T2: Zeroed, T3: Zeroed, T4: Zeroed, T5: Zeroed> Zeroed
   for (T0, T1, T2, T3, T4, T5)
-{}
+{
+}
 unsafe impl<T0: Zeroed, T1: Zeroed, T2: Zeroed, T3: Zeroed, T4: Zeroed, T5: Zeroed, T6: Zeroed>
   Zeroed for (T0, T1, T2, T3, T4, T5, T6)
-{}
+{
+}
 unsafe impl<
     T0: Zeroed,
     T1: Zeroed,
@@ -108,7 +109,8 @@ unsafe impl<
     T6: Zeroed,
     T7: Zeroed,
   > Zeroed for (T0, T1, T2, T3, T4, T5, T6, T7)
-{}
+{
+}
 unsafe impl<
     T0: Zeroed,
     T1: Zeroed,
@@ -120,7 +122,8 @@ unsafe impl<
     T7: Zeroed,
     T8: Zeroed,
   > Zeroed for (T0, T1, T2, T3, T4, T5, T6, T7, T8)
-{}
+{
+}
 unsafe impl<
     T0: Zeroed,
     T1: Zeroed,
@@ -133,7 +136,8 @@ unsafe impl<
     T8: Zeroed,
     T9: Zeroed,
   > Zeroed for (T0, T1, T2, T3, T4, T5, T6, T7, T8, T9)
-{}
+{
+}
 unsafe impl<
     T0: Zeroed,
     T1: Zeroed,
@@ -147,7 +151,8 @@ unsafe impl<
     T9: Zeroed,
     T10: Zeroed,
   > Zeroed for (T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10)
-{}
+{
+}
 unsafe impl<
     T0: Zeroed,
     T1: Zeroed,
@@ -162,7 +167,8 @@ unsafe impl<
     T10: Zeroed,
     T11: Zeroed,
   > Zeroed for (T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11)
-{}
+{
+}
 
 unsafe impl<T: Zeroed> Zeroed for core::num::Wrapping<T> {}
 
@@ -176,15 +182,14 @@ unsafe impl<T: Zeroed> Zeroed for core::cmp::Reverse<T> {}
 unsafe impl<T: Zeroed> Zeroed for core::cell::Cell<T> {}
 unsafe impl<T: Zeroed> Zeroed for core::cell::UnsafeCell<T> {}
 
-// Requires integer_atomics.
-// core::sync::atomic::AtomicU8
-// core::sync::atomic::AtomicU16
-// core::sync::atomic::AtomicU32
-// core::sync::atomic::AtomicU64
-// core::sync::atomic::AtomicI8
-// core::sync::atomic::AtomicI16
-// core::sync::atomic::AtomicI32
-// core::sync::atomic::AtomicI64
+unsafe impl Zeroed for core::sync::atomic::AtomicU8 {}
+unsafe impl Zeroed for core::sync::atomic::AtomicU16 {}
+unsafe impl Zeroed for core::sync::atomic::AtomicU32 {}
+unsafe impl Zeroed for core::sync::atomic::AtomicU64 {}
+unsafe impl Zeroed for core::sync::atomic::AtomicI8 {}
+unsafe impl Zeroed for core::sync::atomic::AtomicI16 {}
+unsafe impl Zeroed for core::sync::atomic::AtomicI32 {}
+unsafe impl Zeroed for core::sync::atomic::AtomicI64 {}
 unsafe impl Zeroed for core::sync::atomic::AtomicUsize {}
 unsafe impl Zeroed for core::sync::atomic::AtomicIsize {}
 unsafe impl Zeroed for core::sync::atomic::AtomicBool {}
@@ -400,10 +405,12 @@ impl<T0: Forgettable, T1: Forgettable> Forgettable for (T0, T1) {}
 impl<T0: Forgettable, T1: Forgettable, T2: Forgettable> Forgettable for (T0, T1, T2) {}
 impl<T0: Forgettable, T1: Forgettable, T2: Forgettable, T3: Forgettable> Forgettable
   for (T0, T1, T2, T3)
-{}
+{
+}
 impl<T0: Forgettable, T1: Forgettable, T2: Forgettable, T3: Forgettable, T4: Forgettable>
   Forgettable for (T0, T1, T2, T3, T4)
-{}
+{
+}
 impl<
     T0: Forgettable,
     T1: Forgettable,
@@ -412,7 +419,8 @@ impl<
     T4: Forgettable,
     T5: Forgettable,
   > Forgettable for (T0, T1, T2, T3, T4, T5)
-{}
+{
+}
 impl<
     T0: Forgettable,
     T1: Forgettable,
@@ -422,7 +430,8 @@ impl<
     T5: Forgettable,
     T6: Forgettable,
   > Forgettable for (T0, T1, T2, T3, T4, T5, T6)
-{}
+{
+}
 impl<
     T0: Forgettable,
     T1: Forgettable,
@@ -433,7 +442,8 @@ impl<
     T6: Forgettable,
     T7: Forgettable,
   > Forgettable for (T0, T1, T2, T3, T4, T5, T6, T7)
-{}
+{
+}
 impl<
     T0: Forgettable,
     T1: Forgettable,
@@ -445,7 +455,8 @@ impl<
     T7: Forgettable,
     T8: Forgettable,
   > Forgettable for (T0, T1, T2, T3, T4, T5, T6, T7, T8)
-{}
+{
+}
 impl<
     T0: Forgettable,
     T1: Forgettable,
@@ -458,7 +469,8 @@ impl<
     T8: Forgettable,
     T9: Forgettable,
   > Forgettable for (T0, T1, T2, T3, T4, T5, T6, T7, T8, T9)
-{}
+{
+}
 impl<
     T0: Forgettable,
     T1: Forgettable,
@@ -472,7 +484,8 @@ impl<
     T9: Forgettable,
     T10: Forgettable,
   > Forgettable for (T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10)
-{}
+{
+}
 impl<
     T0: Forgettable,
     T1: Forgettable,
@@ -487,7 +500,8 @@ impl<
     T10: Forgettable,
     T11: Forgettable,
   > Forgettable for (T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11)
-{}
+{
+}
 
 impl<T: Forgettable> Forgettable for core::num::Wrapping<T> {}
 
@@ -504,14 +518,14 @@ impl<T: Forgettable> Forgettable for core::cell::Cell<T> {}
 impl<T: Forgettable> Forgettable for core::cell::UnsafeCell<T> {}
 
 // Requires integer_atomics.
-// core::sync::atomic::AtomicU8
-// core::sync::atomic::AtomicU16
-// core::sync::atomic::AtomicU32
-// core::sync::atomic::AtomicU64
-// core::sync::atomic::AtomicI8
-// core::sync::atomic::AtomicI16
-// core::sync::atomic::AtomicI32
-// core::sync::atomic::AtomicI64
+impl Forgettable for core::sync::atomic::AtomicU8 {}
+impl Forgettable for core::sync::atomic::AtomicU16 {}
+impl Forgettable for core::sync::atomic::AtomicU32 {}
+impl Forgettable for core::sync::atomic::AtomicU64 {}
+impl Forgettable for core::sync::atomic::AtomicI8 {}
+impl Forgettable for core::sync::atomic::AtomicI16 {}
+impl Forgettable for core::sync::atomic::AtomicI32 {}
+impl Forgettable for core::sync::atomic::AtomicI64 {}
 impl Forgettable for core::sync::atomic::AtomicUsize {}
 impl Forgettable for core::sync::atomic::AtomicIsize {}
 impl Forgettable for core::sync::atomic::AtomicBool {}

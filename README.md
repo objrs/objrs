@@ -63,9 +63,8 @@ Check out the [`demo`](demo) directory for a full demo application (written in 1
 
 1. Use a recent nightly version of Rust on macOS.
 2. Put `objrs = "0.0.2"` in your `Cargo.toml`'s `[dependencies]` section.
-3. Put `#![feature(rust_2018_preview)]` in your crate's main Rust file to enable nightly features required by objrs.
-4. Put `use objrs::objrs` in your code to bring the `objrs` macro attribute into scope.
-5. Hack away!
+3. Put `use objrs::objrs` in your code to bring the `objrs` macro attribute into scope.
+4. Hack away!
 
 objrs also provides framework bindings for Apple's frameworks. The following Apple frameworks have (incomplete) Rust bindings:
 
