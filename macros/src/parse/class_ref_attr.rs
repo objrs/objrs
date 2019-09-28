@@ -38,8 +38,8 @@ impl ClassRef {
     let ty_path = if let Type::Path(ref mut ty_path) = *item.ty { Some(ty_path) } else { None };
     let ty_path = ty_path.unwrap();
     let last = if let Some(pair) = ty_path.path.segments.last_mut() { Some(pair) } else { None };
-    let mut last = last.unwrap();
-    let args = core::mem::replace(&mut last.value_mut().arguments, PathArguments::None);
+    let last = last.unwrap();
+    let args = core::mem::replace(&mut last.arguments, PathArguments::None);
     let args = if let PathArguments::AngleBracketed(args) = args { Some(args) } else { None };
     let args = args.unwrap();
     let first = args.args.into_iter().next().unwrap();

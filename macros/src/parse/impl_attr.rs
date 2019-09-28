@@ -171,14 +171,14 @@ fn parse_class_name(ty: &Type) -> Result<LitStr, Diagnostic> {
     Type::Group(inner) => return parse_class_name(inner.elem.as_ref()),
     Type::Infer(_) => Err("inferred type"),
     Type::Macro(_) => Err("macro"),
-    Type::Verbatim(_) => Err("unknown type"),
+    _ => Err("unknown type"),
   };
   let error_prefix = "expected path type, found ";
   let note = "the #[objrs(impl)] macro may only be applied to impl blocks for path types (e.g., \
               `foo::bar::Baz`)";
   match last_segment {
-    Ok(Some(pair)) => {
-      let ident = &pair.value().ident;
+    Ok(Some(path_segment)) => {
+      let ident = &path_segment.ident;
       return Ok(LitStr::new(&ident.to_string(), ident.span()));
     }
     Ok(None) => {
@@ -257,7 +257,7 @@ impl ClassImpl {
 
     let trait_name = attr.trait_name.or_else(|| {
       item.trait_.as_ref().and_then(|(_, path, _)| {
-        let ident = &path.segments.last()?.value().ident;
+        let ident = &path.segments.last()?.ident;
         return Some(LitStr::new(&ident.to_string(), ident.span()));
       })
     });
@@ -271,7 +271,7 @@ impl ClassImpl {
         ImplItem::Method(mut method) => match take_objrs_attr(&mut method.attrs)? {
           Some(objrs_attr) => {
             let selector_attr =
-              parse2(objrs_attr.tts).map_err(|e| e.span().unstable().error(e.to_string()))?;
+              parse2(objrs_attr.tokens).map_err(|e| e.span().unstable().error(e.to_string()))?;
             validate_selector_attr(&selector_attr)?;
             if let Some(ref default) = method.defaultness {
               return Err(default.span.unstable().error("selector methods may not be `default`"));

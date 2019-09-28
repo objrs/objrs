@@ -43,11 +43,11 @@ mod real {
 
   #[inline(always)]
   fn random<T>() -> T {
-    let mut buf = unsafe { core::mem::uninitialized() };
+    let mut val = core::mem::MaybeUninit::uninit();
     unsafe {
-      arc4random_buf(&mut buf as *mut _ as *mut u8, core::mem::size_of::<T>());
+      arc4random_buf(val.as_mut_ptr() as *mut u8, core::mem::size_of::<T>());
+      return val.assume_init();
     }
-    return buf;
   }
 
   #[inline]
@@ -78,7 +78,6 @@ mod real {
       }
     }
   }
-
 }
 
 #[cfg(test)]

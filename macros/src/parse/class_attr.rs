@@ -206,7 +206,7 @@ fn extract_ivar_attr(field: &mut Field, force_extern: bool) -> Result<IvarAttr, 
   match take_objrs_attr(&mut field.attrs)? {
     Some(attr) => {
       let span = attr.span();
-      ivar_attr = parse2(attr.tts).map_err(|e| span.unstable().error(e.to_string()))?;
+      ivar_attr = parse2(attr.tokens).map_err(|e| span.unstable().error(e.to_string()))?;
     }
     None => return Ok(IvarAttr::default()),
   }
@@ -270,7 +270,7 @@ impl Class {
 
     let super_class_name;
     if attr.super_class.is_some() && attr.super_class_name.is_none() {
-      let ident = &attr.super_class.as_ref().unwrap().path.segments.last().unwrap().value().ident;
+      let ident = &attr.super_class.as_ref().unwrap().path.segments.last().unwrap().ident;
       super_class_name = Some(LitStr::new(&ident.to_string(), ident.span()));
     } else {
       super_class_name = attr.super_class_name;

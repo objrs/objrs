@@ -21,8 +21,9 @@ use syn::{custom_keyword, AttrStyle, Attribute};
 pub fn take_objrs_attr(attrs: &mut Vec<Attribute>) -> Result<Option<Attribute>, Diagnostic> {
   let objrs_attr;
   {
-    let mut iter = DrainExt::drain(attrs, |attr: &mut Attribute| {
-      return attr.style == AttrStyle::Outer && attr.path.is_ident("objrs");
+    let mut iter = DrainExt::drain(attrs, |attr: &mut Attribute| match attr.style {
+      AttrStyle::Outer => return attr.path.is_ident("objrs"),
+      _ => return false,
     });
     objrs_attr = iter.next();
     if let Some(duplicate_attr) = iter.next() {

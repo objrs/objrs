@@ -11,25 +11,29 @@ use proc_macro2::{Span, TokenStream};
 use quote::quote;
 use std::collections::HashSet;
 use syn::{
-  spanned::Spanned, visit_mut::visit_block_mut, visit_mut::visit_expr_mut, visit_mut::VisitMut,
-  Abi, AngleBracketedGenericArguments, ArgCaptured, ArgSelf, ArgSelfRef, AttrStyle, Attribute,
-  BareFnArg, BareFnArgName, BinOp, Binding, Block, BoundLifetimes, ConstParam, Data, DataEnum,
-  DataStruct, DataUnion, DeriveInput, Expr, ExprBlock, ExprVerbatim, Field, Fields, FieldsNamed,
-  FieldsUnnamed, File, FnArg, FnDecl, ForeignItem, ForeignItemFn, ForeignItemStatic,
-  ForeignItemType, ForeignItemVerbatim, GenericArgument, GenericMethodArgument, GenericParam,
-  Generics, Ident, ImplItem, ImplItemConst, ImplItemMacro, ImplItemMethod, ImplItemType,
-  ImplItemVerbatim, Index, Item, ItemConst, ItemEnum, ItemExternCrate, ItemFn, ItemForeignMod,
-  ItemImpl, ItemMacro, ItemMacro2, ItemMod, ItemStatic, ItemStruct, ItemTrait, ItemType, ItemUnion,
-  ItemUse, ItemVerbatim, Label, Lit, LitBool, LitByte, LitByteStr, LitChar, LitFloat, LitInt,
-  LitStr, LitVerbatim, MacroDelimiter, Member, Meta, MetaList, MetaNameValue, MethodSig,
-  MethodTurbofish, NestedMeta, ParenthesizedGenericArguments, Pat, PatBox, PatIdent, PatLit,
-  PatMacro, PatPath, PatRange, PatRef, PatSlice, PatStruct, PatTuple, PatTupleStruct, PatVerbatim,
-  PatWild, PredicateEq, PredicateLifetime, PredicateType, QSelf, RangeLimits, ReturnType, Stmt,
-  TraitBound, TraitBoundModifier, TraitItem, TraitItemConst, TraitItemMacro, TraitItemMethod,
-  TraitItemType, TraitItemVerbatim, Type, TypeArray, TypeBareFn, TypeGroup, TypeImplTrait,
-  TypeInfer, TypeMacro, TypeNever, TypeParam, TypeParamBound, TypeParen, TypePath, TypePtr,
-  TypeReference, TypeSlice, TypeTraitObject, TypeTuple, TypeVerbatim, UnOp, UseGlob, UseGroup,
-  UseName, UsePath, UseRename, UseTree, Variant, VisCrate, VisPublic, VisRestricted, Visibility,
+  spanned::Spanned, visit_mut, visit_mut::VisitMut, Abi, AngleBracketedGenericArguments, Arm,
+  AttrStyle, Attribute, BareFnArg, BinOp, Binding, Block, BoundLifetimes, ConstParam, Constraint,
+  Data, DataEnum, DataStruct, DataUnion, DeriveInput, Expr, ExprArray, ExprAssign, ExprAssignOp,
+  ExprAsync, ExprAwait, ExprBinary, ExprBlock, ExprBox, ExprBreak, ExprCall, ExprCast, ExprClosure,
+  ExprContinue, ExprField, ExprForLoop, ExprGroup, ExprIf, ExprIndex, ExprLet, ExprLit, ExprLoop,
+  ExprMacro, ExprMatch, ExprMethodCall, ExprParen, ExprPath, ExprRange, ExprReference, ExprRepeat,
+  ExprReturn, ExprStruct, ExprTry, ExprTryBlock, ExprTuple, ExprType, ExprUnary, ExprUnsafe,
+  ExprWhile, ExprYield, Field, FieldPat, FieldValue, Fields, FieldsNamed, FieldsUnnamed, File,
+  FnArg, ForeignItem, ForeignItemFn, ForeignItemMacro, ForeignItemStatic, ForeignItemType,
+  GenericArgument, GenericMethodArgument, GenericParam, Generics, Ident, ImplItem, ImplItemConst,
+  ImplItemMacro, ImplItemMethod, ImplItemType, Index, Item, ItemConst, ItemEnum, ItemExternCrate,
+  ItemFn, ItemForeignMod, ItemImpl, ItemMacro, ItemMacro2, ItemMod, ItemStatic, ItemStruct,
+  ItemTrait, ItemTraitAlias, ItemType, ItemUnion, ItemUse, Label, Lifetime, LifetimeDef, Lit,
+  LitBool, LitByte, LitByteStr, LitChar, LitFloat, LitInt, LitStr, Local, Macro, MacroDelimiter,
+  Member, Meta, MetaList, MetaNameValue, MethodTurbofish, NestedMeta,
+  ParenthesizedGenericArguments, Pat, PatBox, PatIdent, PatLit, PatMacro, PatOr, PatPath, PatRange,
+  PatReference, PatRest, PatSlice, PatStruct, PatTuple, PatTupleStruct, PatType, PatWild, Path,
+  PathArguments, PathSegment, PredicateEq, PredicateLifetime, PredicateType, QSelf, RangeLimits,
+  Receiver, ReturnType, Signature, Stmt, TraitBound, TraitBoundModifier, TraitItem, TraitItemConst,
+  TraitItemMacro, TraitItemMethod, TraitItemType, Type, TypeArray, TypeBareFn, TypeGroup,
+  TypeImplTrait, TypeInfer, TypeMacro, TypeNever, TypeParam, TypeParamBound, TypeParen, TypePath,
+  TypePtr, TypeReference, TypeSlice, TypeTraitObject, TypeTuple, UnOp, UseGlob, UseGroup, UseName,
+  UsePath, UseRename, UseTree, Variadic, Variant, VisCrate, VisPublic, VisRestricted, Visibility,
   WhereClause, WherePredicate,
 };
 
@@ -96,8 +100,8 @@ impl<'a> VisitMut for MethodVisitor<'a> {
       let span = expr.span();
       let objrs_self = priv_ident_at(&self.priv_name, span);
       let as_fn = &self.as_fn;
-      new_expr = Some(Expr::Verbatim(ExprVerbatim {
-        tts: quote!(#objrs_root::__objrs::ThisAndFields::#as_fn(#objrs_self)),
+      new_expr = Some(Expr::Verbatim(quote! {
+        #objrs_root::__objrs::ThisAndFields::#as_fn(#objrs_self)
       }));
     } else if let Expr::Field(ref mut expr_field) = expr {
       if self.expr_is_self(&expr_field.base) {
@@ -108,8 +112,8 @@ impl<'a> VisitMut for MethodVisitor<'a> {
         let member = &expr_field.member;
         let as_fn = &self.as_fn;
         let take_ref = &self.take_ref;
-        new_expr = Some(Expr::Verbatim(ExprVerbatim {
-          tts: quote!((*#objrs_root::__objrs::Field::#as_fn(#take_ref #objrs_self #dot #fields #dot #member))),
+        new_expr = Some(Expr::Verbatim(quote! {
+          (*#objrs_root::__objrs::Field::#as_fn(#take_ref #objrs_self #dot #fields #dot #member))
         }));
         let self_arg = &self.self_arg;
         if self.ivar_refs.insert(LiteMember::new(member)) {
@@ -132,7 +136,155 @@ impl<'a> VisitMut for MethodVisitor<'a> {
       return;
     }
 
-    visit_expr_mut(self, expr);
+    visit_mut::visit_expr_mut(self, expr);
+  }
+
+  fn visit_block_mut(&mut self, block: &mut Block) {
+    visit_mut::visit_block_mut(self, block);
+  }
+  fn visit_expr_array_mut(&mut self, expr: &mut ExprArray) {
+    visit_mut::visit_expr_array_mut(self, expr);
+  }
+  fn visit_expr_assign_mut(&mut self, expr: &mut ExprAssign) {
+    visit_mut::visit_expr_assign_mut(self, expr);
+  }
+  fn visit_expr_assign_op_mut(&mut self, expr: &mut ExprAssignOp) {
+    visit_mut::visit_expr_assign_op_mut(self, expr);
+  }
+  fn visit_expr_async_mut(&mut self, expr: &mut ExprAsync) {
+    visit_mut::visit_expr_async_mut(self, expr);
+  }
+  fn visit_expr_await_mut(&mut self, expr: &mut ExprAwait) {
+    visit_mut::visit_expr_await_mut(self, expr);
+  }
+  fn visit_expr_binary_mut(&mut self, expr: &mut ExprBinary) {
+    visit_mut::visit_expr_binary_mut(self, expr);
+  }
+  fn visit_expr_block_mut(&mut self, expr: &mut ExprBlock) {
+    visit_mut::visit_expr_block_mut(self, expr);
+  }
+  fn visit_expr_box_mut(&mut self, expr: &mut ExprBox) {
+    visit_mut::visit_expr_box_mut(self, expr);
+  }
+  fn visit_expr_break_mut(&mut self, expr: &mut ExprBreak) {
+    visit_mut::visit_expr_break_mut(self, expr);
+  }
+  fn visit_expr_call_mut(&mut self, expr: &mut ExprCall) {
+    visit_mut::visit_expr_call_mut(self, expr);
+  }
+  fn visit_expr_cast_mut(&mut self, expr: &mut ExprCast) {
+    visit_mut::visit_expr_cast_mut(self, expr);
+  }
+  fn visit_expr_closure_mut(&mut self, expr: &mut ExprClosure) {
+    visit_mut::visit_expr_closure_mut(self, expr);
+  }
+  fn visit_expr_continue_mut(&mut self, expr: &mut ExprContinue) {
+    visit_mut::visit_expr_continue_mut(self, expr);
+  }
+  fn visit_expr_field_mut(&mut self, expr: &mut ExprField) {
+    visit_mut::visit_expr_field_mut(self, expr);
+  }
+  fn visit_expr_for_loop_mut(&mut self, expr: &mut ExprForLoop) {
+    visit_mut::visit_expr_for_loop_mut(self, expr);
+  }
+  fn visit_expr_group_mut(&mut self, expr: &mut ExprGroup) {
+    visit_mut::visit_expr_group_mut(self, expr);
+  }
+  fn visit_expr_if_mut(&mut self, expr: &mut ExprIf) {
+    visit_mut::visit_expr_if_mut(self, expr);
+  }
+  fn visit_expr_index_mut(&mut self, expr: &mut ExprIndex) {
+    visit_mut::visit_expr_index_mut(self, expr);
+  }
+  fn visit_expr_let_mut(&mut self, expr: &mut ExprLet) {
+    visit_mut::visit_expr_let_mut(self, expr);
+  }
+  fn visit_expr_lit_mut(&mut self, expr: &mut ExprLit) {
+    visit_mut::visit_expr_lit_mut(self, expr);
+  }
+  fn visit_expr_loop_mut(&mut self, expr: &mut ExprLoop) {
+    visit_mut::visit_expr_loop_mut(self, expr);
+  }
+  fn visit_expr_macro_mut(&mut self, expr: &mut ExprMacro) {
+    visit_mut::visit_expr_macro_mut(self, expr);
+  }
+  fn visit_expr_match_mut(&mut self, expr: &mut ExprMatch) {
+    visit_mut::visit_expr_match_mut(self, expr);
+  }
+  fn visit_expr_method_call_mut(&mut self, expr: &mut ExprMethodCall) {
+    visit_mut::visit_expr_method_call_mut(self, expr);
+  }
+  fn visit_expr_paren_mut(&mut self, expr: &mut ExprParen) {
+    visit_mut::visit_expr_paren_mut(self, expr);
+  }
+  fn visit_expr_path_mut(&mut self, expr: &mut ExprPath) {
+    visit_mut::visit_expr_path_mut(self, expr);
+  }
+  fn visit_expr_range_mut(&mut self, expr: &mut ExprRange) {
+    visit_mut::visit_expr_range_mut(self, expr);
+  }
+  fn visit_expr_reference_mut(&mut self, expr: &mut ExprReference) {
+    visit_mut::visit_expr_reference_mut(self, expr);
+  }
+  fn visit_expr_repeat_mut(&mut self, expr: &mut ExprRepeat) {
+    visit_mut::visit_expr_repeat_mut(self, expr);
+  }
+  fn visit_expr_return_mut(&mut self, expr: &mut ExprReturn) {
+    visit_mut::visit_expr_return_mut(self, expr);
+  }
+  fn visit_expr_struct_mut(&mut self, expr: &mut ExprStruct) {
+    visit_mut::visit_expr_struct_mut(self, expr);
+  }
+  fn visit_expr_try_mut(&mut self, expr: &mut ExprTry) {
+    visit_mut::visit_expr_try_mut(self, expr);
+  }
+  fn visit_expr_try_block_mut(&mut self, expr: &mut ExprTryBlock) {
+    visit_mut::visit_expr_try_block_mut(self, expr);
+  }
+  fn visit_expr_tuple_mut(&mut self, expr: &mut ExprTuple) {
+    visit_mut::visit_expr_tuple_mut(self, expr);
+  }
+  fn visit_expr_type_mut(&mut self, expr: &mut ExprType) {
+    visit_mut::visit_expr_type_mut(self, expr);
+  }
+  fn visit_expr_unary_mut(&mut self, expr: &mut ExprUnary) {
+    visit_mut::visit_expr_unary_mut(self, expr);
+  }
+  fn visit_expr_unsafe_mut(&mut self, expr: &mut ExprUnsafe) {
+    visit_mut::visit_expr_unsafe_mut(self, expr);
+  }
+  fn visit_expr_while_mut(&mut self, expr: &mut ExprWhile) {
+    visit_mut::visit_expr_while_mut(self, expr);
+  }
+  fn visit_expr_yield_mut(&mut self, expr: &mut ExprYield) {
+    visit_mut::visit_expr_yield_mut(self, expr);
+  }
+  fn visit_field_pat_mut(&mut self, field: &mut FieldPat) {
+    visit_mut::visit_field_pat_mut(self, field);
+  }
+  fn visit_field_value_mut(&mut self, field: &mut FieldValue) {
+    visit_mut::visit_field_value_mut(self, field);
+  }
+  fn visit_ident_mut(&mut self, ident: &mut Ident) {
+    visit_mut::visit_ident_mut(self, ident);
+  }
+  fn visit_local_mut(&mut self, local: &mut Local) {
+    visit_mut::visit_local_mut(self, local);
+  }
+  fn visit_macro_mut(&mut self, m: &mut Macro) {
+    visit_mut::visit_macro_mut(self, m);
+  }
+  fn visit_path_mut(&mut self, path: &mut Path) {
+    visit_mut::visit_path_mut(self, path);
+  }
+  fn visit_path_arguments_mut(&mut self, args: &mut PathArguments) {
+    visit_mut::visit_path_arguments_mut(self, args);
+  }
+  fn visit_path_segment_mut(&mut self, segment: &mut PathSegment) {
+    visit_mut::visit_path_segment_mut(self, segment);
+  }
+  fn visit_stmt_mut(&mut self, stmt: &mut Stmt) {
+    visit_mut::visit_stmt_mut(self, stmt);
   }
 
   fn visit_abi_mut(&mut self, _: &mut Abi) {}
@@ -141,17 +293,15 @@ impl<'a> VisitMut for MethodVisitor<'a> {
     _: &mut AngleBracketedGenericArguments,
   ) {
   }
-  fn visit_arg_captured_mut(&mut self, _: &mut ArgCaptured) {}
-  fn visit_arg_self_mut(&mut self, _: &mut ArgSelf) {}
-  fn visit_arg_self_ref_mut(&mut self, _: &mut ArgSelfRef) {}
+  fn visit_arm_mut(&mut self, _: &mut Arm) {}
   fn visit_attr_style_mut(&mut self, _: &mut AttrStyle) {}
   fn visit_attribute_mut(&mut self, _: &mut Attribute) {}
   fn visit_bare_fn_arg_mut(&mut self, _: &mut BareFnArg) {}
-  fn visit_bare_fn_arg_name_mut(&mut self, _: &mut BareFnArgName) {}
   fn visit_bin_op_mut(&mut self, _: &mut BinOp) {}
   fn visit_binding_mut(&mut self, _: &mut Binding) {}
   fn visit_bound_lifetimes_mut(&mut self, _: &mut BoundLifetimes) {}
   fn visit_const_param_mut(&mut self, _: &mut ConstParam) {}
+  fn visit_constraint_mut(&mut self, _: &mut Constraint) {}
   fn visit_data_mut(&mut self, _: &mut Data) {}
   fn visit_data_enum_mut(&mut self, _: &mut DataEnum) {}
   fn visit_data_struct_mut(&mut self, _: &mut DataStruct) {}
@@ -163,12 +313,11 @@ impl<'a> VisitMut for MethodVisitor<'a> {
   fn visit_fields_unnamed_mut(&mut self, _: &mut FieldsUnnamed) {}
   fn visit_file_mut(&mut self, _: &mut File) {}
   fn visit_fn_arg_mut(&mut self, _: &mut FnArg) {}
-  fn visit_fn_decl_mut(&mut self, _: &mut FnDecl) {}
   fn visit_foreign_item_mut(&mut self, _: &mut ForeignItem) {}
   fn visit_foreign_item_fn_mut(&mut self, _: &mut ForeignItemFn) {}
+  fn visit_foreign_item_macro_mut(&mut self, _: &mut ForeignItemMacro) {}
   fn visit_foreign_item_static_mut(&mut self, _: &mut ForeignItemStatic) {}
   fn visit_foreign_item_type_mut(&mut self, _: &mut ForeignItemType) {}
-  fn visit_foreign_item_verbatim_mut(&mut self, _: &mut ForeignItemVerbatim) {}
   fn visit_generic_argument_mut(&mut self, _: &mut GenericArgument) {}
   fn visit_generic_method_argument_mut(&mut self, _: &mut GenericMethodArgument) {}
   fn visit_generic_param_mut(&mut self, _: &mut GenericParam) {}
@@ -178,7 +327,6 @@ impl<'a> VisitMut for MethodVisitor<'a> {
   fn visit_impl_item_macro_mut(&mut self, _: &mut ImplItemMacro) {}
   fn visit_impl_item_method_mut(&mut self, _: &mut ImplItemMethod) {}
   fn visit_impl_item_type_mut(&mut self, _: &mut ImplItemType) {}
-  fn visit_impl_item_verbatim_mut(&mut self, _: &mut ImplItemVerbatim) {}
   fn visit_index_mut(&mut self, _: &mut Index) {}
   fn visit_item_mut(&mut self, _: &mut Item) {}
   fn visit_item_const_mut(&mut self, _: &mut ItemConst) {}
@@ -193,11 +341,13 @@ impl<'a> VisitMut for MethodVisitor<'a> {
   fn visit_item_static_mut(&mut self, _: &mut ItemStatic) {}
   fn visit_item_struct_mut(&mut self, _: &mut ItemStruct) {}
   fn visit_item_trait_mut(&mut self, _: &mut ItemTrait) {}
+  fn visit_item_trait_alias_mut(&mut self, _: &mut ItemTraitAlias) {}
   fn visit_item_type_mut(&mut self, _: &mut ItemType) {}
   fn visit_item_union_mut(&mut self, _: &mut ItemUnion) {}
   fn visit_item_use_mut(&mut self, _: &mut ItemUse) {}
-  fn visit_item_verbatim_mut(&mut self, _: &mut ItemVerbatim) {}
   fn visit_label_mut(&mut self, _: &mut Label) {}
+  fn visit_lifetime_mut(&mut self, _: &mut Lifetime) {}
+  fn visit_lifetime_def_mut(&mut self, _: &mut LifetimeDef) {}
   fn visit_lit_mut(&mut self, _: &mut Lit) {}
   fn visit_lit_bool_mut(&mut self, _: &mut LitBool) {}
   fn visit_lit_byte_mut(&mut self, _: &mut LitByte) {}
@@ -206,13 +356,11 @@ impl<'a> VisitMut for MethodVisitor<'a> {
   fn visit_lit_float_mut(&mut self, _: &mut LitFloat) {}
   fn visit_lit_int_mut(&mut self, _: &mut LitInt) {}
   fn visit_lit_str_mut(&mut self, _: &mut LitStr) {}
-  fn visit_lit_verbatim_mut(&mut self, _: &mut LitVerbatim) {}
   fn visit_macro_delimiter_mut(&mut self, _: &mut MacroDelimiter) {}
   fn visit_member_mut(&mut self, _: &mut Member) {}
   fn visit_meta_mut(&mut self, _: &mut Meta) {}
   fn visit_meta_list_mut(&mut self, _: &mut MetaList) {}
   fn visit_meta_name_value_mut(&mut self, _: &mut MetaNameValue) {}
-  fn visit_method_sig_mut(&mut self, _: &mut MethodSig) {}
   fn visit_method_turbofish_mut(&mut self, _: &mut MethodTurbofish) {}
   fn visit_nested_meta_mut(&mut self, _: &mut NestedMeta) {}
   fn visit_parenthesized_generic_arguments_mut(&mut self, _: &mut ParenthesizedGenericArguments) {}
@@ -221,21 +369,25 @@ impl<'a> VisitMut for MethodVisitor<'a> {
   fn visit_pat_ident_mut(&mut self, _: &mut PatIdent) {}
   fn visit_pat_lit_mut(&mut self, _: &mut PatLit) {}
   fn visit_pat_macro_mut(&mut self, _: &mut PatMacro) {}
+  fn visit_pat_or_mut(&mut self, _: &mut PatOr) {}
   fn visit_pat_path_mut(&mut self, _: &mut PatPath) {}
   fn visit_pat_range_mut(&mut self, _: &mut PatRange) {}
-  fn visit_pat_ref_mut(&mut self, _: &mut PatRef) {}
+  fn visit_pat_reference_mut(&mut self, _: &mut PatReference) {}
+  fn visit_pat_rest_mut(&mut self, _: &mut PatRest) {}
   fn visit_pat_slice_mut(&mut self, _: &mut PatSlice) {}
   fn visit_pat_struct_mut(&mut self, _: &mut PatStruct) {}
   fn visit_pat_tuple_mut(&mut self, _: &mut PatTuple) {}
   fn visit_pat_tuple_struct_mut(&mut self, _: &mut PatTupleStruct) {}
-  fn visit_pat_verbatim_mut(&mut self, _: &mut PatVerbatim) {}
+  fn visit_pat_type_mut(&mut self, _: &mut PatType) {}
   fn visit_pat_wild_mut(&mut self, _: &mut PatWild) {}
   fn visit_predicate_eq_mut(&mut self, _: &mut PredicateEq) {}
   fn visit_predicate_lifetime_mut(&mut self, _: &mut PredicateLifetime) {}
   fn visit_predicate_type_mut(&mut self, _: &mut PredicateType) {}
   fn visit_qself_mut(&mut self, _: &mut QSelf) {}
   fn visit_range_limits_mut(&mut self, _: &mut RangeLimits) {}
+  fn visit_receiver_mut(&mut self, _: &mut Receiver) {}
   fn visit_return_type_mut(&mut self, _: &mut ReturnType) {}
+  fn visit_signature_mut(&mut self, _: &mut Signature) {}
   fn visit_span_mut(&mut self, _: &mut Span) {}
   fn visit_trait_bound_mut(&mut self, _: &mut TraitBound) {}
   fn visit_trait_bound_modifier_mut(&mut self, _: &mut TraitBoundModifier) {}
@@ -244,7 +396,6 @@ impl<'a> VisitMut for MethodVisitor<'a> {
   fn visit_trait_item_macro_mut(&mut self, _: &mut TraitItemMacro) {}
   fn visit_trait_item_method_mut(&mut self, _: &mut TraitItemMethod) {}
   fn visit_trait_item_type_mut(&mut self, _: &mut TraitItemType) {}
-  fn visit_trait_item_verbatim_mut(&mut self, _: &mut TraitItemVerbatim) {}
   fn visit_type_mut(&mut self, _: &mut Type) {}
   fn visit_type_array_mut(&mut self, _: &mut TypeArray) {}
   fn visit_type_bare_fn_mut(&mut self, _: &mut TypeBareFn) {}
@@ -262,7 +413,6 @@ impl<'a> VisitMut for MethodVisitor<'a> {
   fn visit_type_slice_mut(&mut self, _: &mut TypeSlice) {}
   fn visit_type_trait_object_mut(&mut self, _: &mut TypeTraitObject) {}
   fn visit_type_tuple_mut(&mut self, _: &mut TypeTuple) {}
-  fn visit_type_verbatim_mut(&mut self, _: &mut TypeVerbatim) {}
   fn visit_un_op_mut(&mut self, _: &mut UnOp) {}
   fn visit_use_glob_mut(&mut self, _: &mut UseGlob) {}
   fn visit_use_group_mut(&mut self, _: &mut UseGroup) {}
@@ -270,6 +420,7 @@ impl<'a> VisitMut for MethodVisitor<'a> {
   fn visit_use_path_mut(&mut self, _: &mut UsePath) {}
   fn visit_use_rename_mut(&mut self, _: &mut UseRename) {}
   fn visit_use_tree_mut(&mut self, _: &mut UseTree) {}
+  fn visit_variadic_mut(&mut self, _: &mut Variadic) {}
   fn visit_variant_mut(&mut self, _: &mut Variant) {}
   fn visit_vis_crate_mut(&mut self, _: &mut VisCrate) {}
   fn visit_vis_public_mut(&mut self, _: &mut VisPublic) {}
@@ -284,22 +435,16 @@ pub fn transform_ivars(method: &mut ImplItemMethod, objrs_root: &Ident) -> Resul
     return Ok(());
   }
 
-  let as_ref;
+  let as_mut;
   let priv_name;
   let self_arg;
-  match method.sig.decl.inputs.first().expect("BUG: missing self arg in the ivar transform").value()
-  {
-    FnArg::SelfRef(ref self_ref) => {
-      as_ref = self_ref.mutability.is_none();
-      self_arg = Ident::new("self", self_ref.self_token.span());
+  match method.sig.inputs.first().expect("BUG: missing self arg in the ivar transform") {
+    FnArg::Receiver(ref receiver) => {
+      as_mut = receiver.mutability.is_some();
+      self_arg = Ident::new("self", receiver.self_token.span());
       priv_name = "__objrs_self".to_string();
     }
-    FnArg::SelfValue(ref self_value) => {
-      as_ref = self_value.mutability.is_none();
-      self_arg = Ident::new("self", self_value.self_token.span());
-      priv_name = "__objrs_self".to_string();
-    }
-    FnArg::Captured(ref arg) => match arg.pat {
+    FnArg::Typed(ref pat_ty) => match *pat_ty.pat {
       Pat::Ident(ref pat_ident) => {
         if let Some(ref by_ref) = pat_ident.by_ref {
           return Err(
@@ -310,7 +455,7 @@ pub fn transform_ivars(method: &mut ImplItemMethod, objrs_root: &Ident) -> Resul
               .note("the current version of objrs disallows them"),
           );
         }
-        as_ref = false;
+        as_mut = true;
         self_arg = pat_ident.ident.clone();
         let self_arg_name = self_arg.to_string();
         if self_arg_name == "self" {
@@ -321,7 +466,7 @@ pub fn transform_ivars(method: &mut ImplItemMethod, objrs_root: &Ident) -> Resul
       }
       _ => {
         return Err(
-          arg
+          pat_ty
             .pat
             .span()
             .unstable()
@@ -330,27 +475,18 @@ pub fn transform_ivars(method: &mut ImplItemMethod, objrs_root: &Ident) -> Resul
         );
       }
     },
-    arg => {
-      return Err(
-        arg
-          .span()
-          .unstable()
-          .error("expected argument, found inferred or ignored argument")
-          .note("objrs does not support inferred or ignored self arguments"),
-      );
-    }
   }
 
   let objrs_self = priv_ident(&priv_name);
-  let mut visitor = MethodVisitor::new(as_ref, self_arg, objrs_root, priv_name);
-  visit_block_mut(&mut visitor, &mut method.block);
+  let mut visitor = MethodVisitor::new(!as_mut, self_arg, objrs_root, priv_name);
+  visit_mut::visit_block_mut(&mut visitor, &mut method.block);
 
   if !visitor.modified {
     return Ok(());
   }
 
-  let maybe_mut = if as_ref { None } else { Some(quote!(mut)) };
-  let extend = if as_ref { quote!(extend_ref) } else { quote!(extend_mut) };
+  let maybe_mut = if as_mut { Some(quote!(mut)) } else { None };
+  let extend = if as_mut { quote!(extend_mut) } else { quote!(extend_ref) };
 
   let self_arg = visitor.self_arg;
   let take_ref = visitor.take_ref;
@@ -365,12 +501,10 @@ pub fn transform_ivars(method: &mut ImplItemMethod, objrs_root: &Ident) -> Resul
     },
   );
   let stmts = vec![
-    Stmt::Item(Item::Verbatim(ItemVerbatim {
-      tts: quote! {
-        let mut #objrs_self = <Self as #objrs_root::__objrs::Fields>::from_ref(#self_arg);
-        #load_ivars
-        let #maybe_mut #objrs_self = unsafe { #objrs_root::__objrs::ThisAndFields::#extend(#take_ref #objrs_self, #self_arg) };
-      },
+    Stmt::Item(Item::Verbatim(quote! {
+      let mut #objrs_self = <Self as #objrs_root::__objrs::Fields>::from_ref(#self_arg);
+      #load_ivars
+      let #maybe_mut #objrs_self = unsafe { #objrs_root::__objrs::ThisAndFields::#extend(#take_ref #objrs_self, #self_arg) };
     })),
     Stmt::Expr(Expr::Block(ExprBlock {
       attrs: Vec::new(),
@@ -395,12 +529,12 @@ mod tests {
     let original: ImplItemMethod = parse_quote!(fn foo(self) {});
     let mut method = original.clone();
     assert!(transform_ivars(&mut method, &objrs_root).is_ok());
-    assert_eq!(method, original);
+    assert_eq!(method.into_token_stream().to_string(), original.into_token_stream().to_string());
 
     let original: ImplItemMethod = parse_quote!(fn foo(self) { do_something(); });
     let mut method = original.clone();
     assert!(transform_ivars(&mut method, &objrs_root).is_ok());
-    assert_eq!(method, original);
+    assert_eq!(method.into_token_stream().to_string(), original.into_token_stream().to_string());
   }
 
   #[test]
@@ -499,6 +633,6 @@ mod tests {
     });
     let mut method = original.clone();
     assert!(transform_ivars(&mut method, &objrs_root).is_ok());
-    assert_eq!(method, original);
+    assert_eq!(method.into_token_stream().to_string(), original.into_token_stream().to_string());
   }
 }

@@ -12,9 +12,9 @@ license = "Apache-2.0 OR MIT OR MPL-2.0"
 description = "Macro magic for objrs."
 
 [dependencies]
-proc-macro2 = { version = "0.4", features = ["nightly"] }
-quote = { version = "0.6" }
-syn = { version = "0.15", features = ["full", "visit-mut", "extra-traits"] }
+proc-macro2 = "1"
+quote = "1"
+syn = { version = "1", features = ["full", "visit-mut"] }
 
 [lib]
 proc-macro = true

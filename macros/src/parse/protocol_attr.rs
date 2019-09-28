@@ -82,7 +82,7 @@ use crate::parse::selector_attr::{ItemMethod, Method};
 use crate::parse::util::objrs_root;
 use proc_macro::Diagnostic;
 use proc_macro2::TokenStream;
-use std::collections::HashSet;
+use std::collections::HashMap;
 use syn::parse::{Parse, ParseStream};
 use syn::spanned::Spanned;
 use syn::{parse2, Ident, ItemTrait, LitStr, TraitItem, TraitItemMethod};
@@ -128,7 +128,7 @@ fn parse_method(mut method: TraitItemMethod) -> Result<Method, Diagnostic> {
   match take_objrs_attr(&mut method.attrs)? {
     Some(objrs_attr) => {
       let selector_attr =
-        parse2(objrs_attr.tts).map_err(|e| e.span().unstable().error(e.to_string()))?;
+        parse2(objrs_attr.tokens).map_err(|e| e.span().unstable().error(e.to_string()))?;
       let objrs_method = Method::new(ItemMethod::Trait(method), selector_attr)?;
 
       if objrs_method.is_instance_method && objrs_method.attr.sel.value() == "dealloc" {
@@ -184,8 +184,8 @@ impl Protocol {
 
     // TODO: support custom protocols. Currently only extern protocols are supported.
 
-    let mut expected_class_properties = HashSet::new();
-    let mut expected_instance_properties = HashSet::new();
+    let mut expected_class_properties = HashMap::new();
+    let mut expected_instance_properties = HashMap::new();
     for property in attr.properties.iter() {
       let expected_properties;
       if property.class.is_some() {
@@ -193,9 +193,10 @@ impl Protocol {
       } else {
         expected_properties = &mut expected_instance_properties;
       }
-      expected_properties.insert(property.getter());
+      let getter = property.getter();
+      expected_properties.insert(getter.value(), getter.span());
       if let Some(setter) = property.setter() {
-        expected_properties.insert(setter);
+        expected_properties.insert(setter.value(), setter.span());
       }
     }
 
@@ -207,10 +208,10 @@ impl Protocol {
         TraitItem::Method(method) => {
           let method = parse_method(method)?;
           if method.is_instance_method {
-            expected_instance_properties.remove(&method.attr.sel);
+            expected_instance_properties.remove(&method.attr.sel.value());
             instance_methods.push(method);
           } else {
-            expected_class_properties.remove(&method.attr.sel);
+            expected_class_properties.remove(&method.attr.sel.value());
             class_methods.push(method);
           }
         }
@@ -219,18 +220,16 @@ impl Protocol {
     }
     item.items = non_methods;
 
-    for selector in expected_class_properties.iter().chain(expected_instance_properties.iter()) {
+    for (selector, span) in
+      expected_class_properties.iter().chain(expected_instance_properties.iter())
+    {
       return Err(
-        selector
-          .span()
+        span
           .unstable()
-          .error(format!(
-            "selector \"{}\" is missing from the trait's method list",
-            selector.value()
-          ))
+          .error(format!("selector \"{}\" is missing from the trait's method list", selector))
           .note(format!(
             "objrs requires a method in the trait to have an #[objrs(selector = \"{}\")] attribute",
-            selector.value()
+            selector
           )),
       );
     }
