@@ -5,7 +5,7 @@
 
 [package]
 name = "objrs_macros"
-version = "0.0.2"
+version = "0.0.3-dev"
 authors = ["Michael Bradshaw <mjbshaw@gmail.com>"]
 edition = "2018"
 license = "Apache-2.0 OR MIT OR MPL-2.0"

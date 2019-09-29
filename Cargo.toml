@@ -21,7 +21,7 @@ exclude = ["test"]
 
 [package]
 name = "objrs"
-version = "0.0.2"
+version = "0.0.3-dev"
 authors = ["Michael Bradshaw <mjbshaw@gmail.com>"]
 edition = "2018"
 license = "Apache-2.0 OR MIT OR MPL-2.0"
@@ -47,4 +47,4 @@ std = ["alloc"]
 
 [dependencies]
 libc = { version = "0.2", default-features = false }
-objrs_macros = { path = "macros", version = "0.0.2" }
+objrs_macros = { path = "macros", version = "0.0.3-dev" }

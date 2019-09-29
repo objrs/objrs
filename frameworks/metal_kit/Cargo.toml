@@ -5,7 +5,7 @@
 
 [package]
 name = "objrs_frameworks_metal_kit"
-version = "0.0.2"
+version = "0.0.3-dev"
 authors = ["Michael Bradshaw <mjbshaw@gmail.com>"]
 edition = "2018"
 license = "Apache-2.0 OR MIT OR MPL-2.0"
@@ -19,9 +19,9 @@ categories = ["api-bindings", "external-ffi-bindings", "no-std", "os::macos-apis
 maintenance = { status = "experimental" }
 
 [dependencies]
-objrs = { path = "../../", version = "0.0.2" }
-objrs_frameworks_core_graphics = { path = "../core_graphics", version = "0.0.2" }
-objrs_frameworks_metal = { path = "../metal", version = "0.0.2" }
+objrs = { path = "../../", version = "0.0.3-dev" }
+objrs_frameworks_core_graphics = { path = "../core_graphics", version = "0.0.3-dev" }
+objrs_frameworks_metal = { path = "../metal", version = "0.0.3-dev" }
 
 [target.'cfg(target_os = "macos")'.dependencies]
-objrs_frameworks_app_kit = { path = "../app_kit", version = "0.0.2" }
+objrs_frameworks_app_kit = { path = "../app_kit", version = "0.0.3-dev" }

@@ -5,7 +5,7 @@
 
 [package]
 name = "objrs_frameworks_metal"
-version = "0.0.2"
+version = "0.0.3-dev"
 authors = ["Michael Bradshaw <mjbshaw@gmail.com>"]
 edition = "2018"
 license = "Apache-2.0 OR MIT OR MPL-2.0"
@@ -20,5 +20,5 @@ maintenance = { status = "experimental" }
 
 [dependencies]
 libc = { version = "0.2", default-features = false }
-objrs = { path = "../../", version = "0.0.2" }
-objrs_frameworks_foundation = { path = "../foundation", version = "0.0.2" }
+objrs = { path = "../../", version = "0.0.3-dev" }
+objrs_frameworks_foundation = { path = "../foundation", version = "0.0.3-dev" }

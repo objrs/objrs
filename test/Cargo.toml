@@ -7,7 +7,7 @@
 
 [package]
 name = "objrs_test"
-version = "0.0.2"
+version = "0.0.3-dev"
 authors = ["Michael Bradshaw <mjbshaw@gmail.com>"]
 edition = "2018"
 license = "Apache-2.0 OR MIT OR MPL-2.0"
@@ -28,4 +28,4 @@ std = ["alloc", "objrs/std"]
 
 [dependencies]
 libc = { version = "0.2", default-features = false }
-objrs = { path = "..", version = "0.0.2", default-features = false }
+objrs = { path = "..", version = "0.0.3-dev", default-features = false }
