@@ -3,6 +3,8 @@
 // may not be copied, modified, or distributed except according to those terms. For copies of these
 // licenses and more information, see the COPYRIGHT file in this distribution's top-level directory.
 
+extern crate syn;
+
 use crate::span_ext::SpanExt;
 use crate::util::priv_ident;
 use syn::Ident;

@@ -9,8 +9,8 @@ extern crate proc_macro2;
 extern crate quote;
 extern crate syn;
 
-use crate::gen::gensym::RandomIdentifier;
 use crate::parse::sel_ref_attr::SelRef;
+use crate::util::RandomIdentifier;
 use proc_macro::Diagnostic;
 use proc_macro2::TokenStream;
 use quote::quote;
@@ -43,7 +43,10 @@ pub fn gen_sel_ref(mut sel_ref: SelRef) -> Result<TokenStream, Diagnostic> {
 
 #[cfg(test)]
 mod tests {
+  extern crate objrs_test_utils;
+
   use super::*;
+  use objrs_test_utils::assert_tokens_eq;
   use syn::parse_quote;
 
   fn default_sel() -> SelRef {
@@ -70,6 +73,6 @@ mod tests {
         &METH_NAME
       };
     };
-    assert_eq!(actual.to_string(), expected.to_string());
+    assert_tokens_eq!(actual, expected);
   }
 }

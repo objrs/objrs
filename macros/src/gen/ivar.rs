@@ -518,8 +518,10 @@ pub fn transform_ivars(method: &mut ImplItemMethod, objrs_root: &Ident) -> Resul
 
 #[cfg(test)]
 mod tests {
+  extern crate objrs_test_utils;
+
   use super::*;
-  use quote::ToTokens;
+  use objrs_test_utils::assert_tokens_eq;
   use syn::parse_quote;
 
   #[test]
@@ -529,12 +531,12 @@ mod tests {
     let original: ImplItemMethod = parse_quote!(fn foo(self) {});
     let mut method = original.clone();
     assert!(transform_ivars(&mut method, &objrs_root).is_ok());
-    assert_eq!(method.into_token_stream().to_string(), original.into_token_stream().to_string());
+    assert_tokens_eq!(method, original);
 
     let original: ImplItemMethod = parse_quote!(fn foo(self) { do_something(); });
     let mut method = original.clone();
     assert!(transform_ivars(&mut method, &objrs_root).is_ok());
-    assert_eq!(method.into_token_stream().to_string(), original.into_token_stream().to_string());
+    assert_tokens_eq!(method, original);
   }
 
   #[test]
@@ -543,14 +545,14 @@ mod tests {
     let mut method: ImplItemMethod = parse_quote!(fn foo(self) { do_something(self); });
     assert!(transform_ivars(&mut method, &objrs_root).is_ok());
 
-    let expected: ImplItemMethod = parse_quote!(fn foo(self) {
+    let expected = quote!(fn foo(self) {
       let mut __objrs_self = <Self as __objrs_root::__objrs::Fields>::from_ref(self);
       let __objrs_self = unsafe { __objrs_root::__objrs::ThisAndFields::extend_ref(&__objrs_self, self) };
       {
         do_something(__objrs_root::__objrs::ThisAndFields::as_ref(__objrs_self));
       }
     });
-    assert_eq!(method.into_token_stream().to_string(), expected.into_token_stream().to_string());
+    assert_tokens_eq!(method, expected);
   }
 
   #[test]
@@ -559,14 +561,14 @@ mod tests {
     let mut method: ImplItemMethod = parse_quote!(fn foo(self) { self.do_something(); });
     assert!(transform_ivars(&mut method, &objrs_root).is_ok());
 
-    let expected: ImplItemMethod = parse_quote!(fn foo(self) {
+    let expected = quote!(fn foo(self) {
       let mut __objrs_self = <Self as __objrs_root::__objrs::Fields>::from_ref(self);
       let __objrs_self = unsafe { __objrs_root::__objrs::ThisAndFields::extend_ref(&__objrs_self, self) };
       {
         __objrs_root::__objrs::ThisAndFields::as_ref(__objrs_self).do_something();
       }
     });
-    assert_eq!(method.into_token_stream().to_string(), expected.into_token_stream().to_string());
+    assert_tokens_eq!(method, expected);
   }
 
   #[test]
@@ -575,7 +577,7 @@ mod tests {
     let mut method: ImplItemMethod = parse_quote!(fn foo(self) { do_something(self.foo); });
     assert!(transform_ivars(&mut method, &objrs_root).is_ok());
 
-    let expected: ImplItemMethod = parse_quote!(fn foo(self) {
+    let expected = quote!(fn foo(self) {
       let mut __objrs_self = <Self as __objrs_root::__objrs::Fields>::from_ref(self);
       unsafe { __objrs_root::__objrs::Field::load(&mut __objrs_self.fields.foo, __objrs_root::__objrs::core::mem::transmute(&*self)); }
       let __objrs_self = unsafe { __objrs_root::__objrs::ThisAndFields::extend_ref(&__objrs_self, self) };
@@ -583,7 +585,7 @@ mod tests {
         do_something((*__objrs_root::__objrs::Field::as_ref(&__objrs_self.fields.foo)));
       }
     });
-    assert_eq!(method.into_token_stream().to_string(), expected.into_token_stream().to_string());
+    assert_tokens_eq!(method, expected);
   }
 
   #[test]
@@ -592,7 +594,7 @@ mod tests {
     let mut method: ImplItemMethod = parse_quote!(fn foo(mut self) { self.foo = self.bar; });
     assert!(transform_ivars(&mut method, &objrs_root).is_ok());
 
-    let expected: ImplItemMethod = parse_quote!(fn foo(mut self) {
+    let expected = quote!(fn foo(mut self) {
       let mut __objrs_self = <Self as __objrs_root::__objrs::Fields>::from_ref(self);
       unsafe { __objrs_root::__objrs::Field::load(&mut __objrs_self.fields.foo, __objrs_root::__objrs::core::mem::transmute(&*self)); }
       unsafe { __objrs_root::__objrs::Field::load(&mut __objrs_self.fields.bar, __objrs_root::__objrs::core::mem::transmute(&*self)); }
@@ -601,7 +603,7 @@ mod tests {
         (*__objrs_root::__objrs::Field::as_mut(&mut __objrs_self.fields.foo)) = (*__objrs_root::__objrs::Field::as_mut(&mut __objrs_self.fields.bar));
       }
     });
-    assert_eq!(method.into_token_stream().to_string(), expected.into_token_stream().to_string());
+    assert_tokens_eq!(method, expected);
   }
 
   #[test]
@@ -610,7 +612,7 @@ mod tests {
     let mut method: ImplItemMethod = parse_quote!(fn foo(self) { do_something(self.0); });
     assert!(transform_ivars(&mut method, &objrs_root).is_ok());
 
-    let expected: ImplItemMethod = parse_quote!(fn foo(self) {
+    let expected = quote!(fn foo(self) {
       let mut __objrs_self = <Self as __objrs_root::__objrs::Fields>::from_ref(self);
       unsafe { __objrs_root::__objrs::Field::load(&mut __objrs_self.fields.0, __objrs_root::__objrs::core::mem::transmute(&*self)); }
       let __objrs_self = unsafe { __objrs_root::__objrs::ThisAndFields::extend_ref(&__objrs_self, self) };
@@ -618,7 +620,7 @@ mod tests {
         do_something((*__objrs_root::__objrs::Field::as_ref(&__objrs_self.fields.0)));
       }
     });
-    assert_eq!(method.into_token_stream().to_string(), expected.into_token_stream().to_string());
+    assert_tokens_eq!(method, expected);
   }
 
   #[test]
@@ -633,6 +635,6 @@ mod tests {
     });
     let mut method = original.clone();
     assert!(transform_ivars(&mut method, &objrs_root).is_ok());
-    assert_eq!(method.into_token_stream().to_string(), original.into_token_stream().to_string());
+    assert_tokens_eq!(method, original);
   }
 }

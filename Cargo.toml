@@ -14,7 +14,9 @@ members = [
   "frameworks/metal",
   "frameworks/metal_kit",
   "macros",
+  "test_utils",
   "tiny_test",
+  "utils",
 ]
 
 exclude = ["test"]

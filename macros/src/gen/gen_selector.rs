@@ -931,9 +931,11 @@ pub fn gen_trampoline(method: &Method, objrs_root: &Ident) -> Result<ImplItemMet
 
 #[cfg(test)]
 mod tests {
+  extern crate objrs_test_utils;
+
   use super::*;
   use crate::parse::selector_attr::{ItemMethod, MethodType, SelectorAttr};
-  use quote::ToTokens;
+  use objrs_test_utils::assert_tokens_eq;
   use syn::parse_quote;
 
   #[test]
@@ -960,7 +962,7 @@ mod tests {
     };
     let method = gen_msg_recv(&method, "ClassName", None, &objrs_root).unwrap();
 
-    let expected: ImplItemMethod = parse_quote! {
+    let expected = quote! {
       #[doc(hidden)]
       #[export_name = "\u{1}-[ClassName foo:bar:]"]
       extern "C" fn __objrs_msg_recv_foo_bar(&self, _: &'static __objrs_root::Sel, arg1: u32, arg2: bool) -> f32 {
@@ -969,7 +971,7 @@ mod tests {
         return baz();
       }
     };
-    assert_eq!(method.into_token_stream().to_string(), expected.into_token_stream().to_string());
+    assert_tokens_eq!(method, expected);
   }
 
   #[test]
@@ -992,12 +994,12 @@ mod tests {
     };
     let method = gen_msg_recv(&method, "ClassName", Some("Category"), &objrs_root).unwrap();
 
-    let expected: ImplItemMethod = parse_quote! {
+    let expected = quote! {
       #[doc(hidden)]
       #[export_name = "\u{1}+[ClassName(Category) baz]"]
       unsafe extern "C" fn __objrs_msg_recv_baz(_: __objrs_root::__objrs::core::ptr::NonNull<__objrs_root::Class>, _: &'static __objrs_root::Sel) {
       }
     };
-    assert_eq!(method.into_token_stream().to_string(), expected.into_token_stream().to_string());
+    assert_tokens_eq!(method, expected);
   }
 }

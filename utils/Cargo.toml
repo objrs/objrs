@@ -4,21 +4,12 @@
 # licenses and more information, see the COPYRIGHT file in this distribution's top-level directory.
 
 [package]
-name = "objrs_macros"
+name = "objrs_utils"
 version = "0.0.3-dev"
 authors = ["Michael Bradshaw <mjbshaw@gmail.com>"]
 edition = "2018"
 license = "Apache-2.0 OR MIT OR MPL-2.0"
-description = "Macro magic for objrs."
+description = "Common utilies for objrs crates."
 
 [dependencies]
-objrs_utils = { path = "../utils", version = "0.0.3-dev" }
 proc-macro2 = "1"
-quote = "1"
-syn = { version = "1", features = ["full", "visit-mut"] }
-
-[dev-dependencies]
-objrs_test_utils = { path = "../test_utils", version = "0.0.3-dev" }
-
-[lib]
-proc-macro = true

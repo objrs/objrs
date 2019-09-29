@@ -10,10 +10,9 @@ extern crate quote;
 extern crate syn;
 
 use crate::gen::gen_selector::gen_msg_recv;
-use crate::gen::gensym::RandomIdentifier;
 use crate::parse::attr::take_objrs_attr;
 use crate::parse::selector_attr::{ItemMethod, Method, MethodType, SelectorAttr};
-use crate::util::{is_instance_method, priv_ident_at};
+use crate::util::{is_instance_method, priv_ident_at, RandomIdentifier};
 use proc_macro::Diagnostic;
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens};

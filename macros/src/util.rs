@@ -4,11 +4,21 @@
 // licenses and more information, see the COPYRIGHT file in this distribution's top-level directory.
 
 extern crate core;
+extern crate objrs_utils;
 extern crate proc_macro;
 extern crate proc_macro2;
 extern crate syn;
 
+#[cfg(test)]
+extern crate objrs_test_utils;
+
 use syn::{punctuated::Punctuated, token::Comma, AttrStyle, Attribute, FnArg, Pat, PatType};
+
+#[cfg(not(test))]
+pub use objrs_utils::RandomIdentifier;
+
+#[cfg(test)]
+pub type RandomIdentifier = objrs_test_utils::FakeRandomIdentifier;
 
 pub fn link_attribute(attrs: &[Attribute]) -> Option<&Attribute> {
   for attr in attrs {

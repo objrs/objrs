@@ -13,11 +13,10 @@ use crate::class::{
 use crate::gen::class_ref::{
   gen_class_ref_value, gen_super_class_ref_value, gen_super_meta_ref_value,
 };
-use crate::gen::gensym::RandomIdentifier;
 use crate::gen::ivar::transform_ivars;
 use crate::parse::impl_attr::ImplAttr;
 use crate::selector::{parse_selector_method, ObjrsMethod};
-use crate::util::{is_instance_method, link_attribute, priv_ident};
+use crate::util::{is_instance_method, link_attribute, priv_ident, RandomIdentifier};
 use proc_macro::Diagnostic;
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
