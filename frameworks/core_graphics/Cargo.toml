@@ -5,7 +5,7 @@
 
 [package]
 name = "objrs_frameworks_core_graphics"
-version = "0.0.2"
+version = "0.0.3-dev"
 authors = ["Michael Bradshaw <mjbshaw@gmail.com>"]
 edition = "2018"
 license = "Apache-2.0 OR MIT OR MPL-2.0"
@@ -19,4 +19,4 @@ categories = ["api-bindings", "external-ffi-bindings", "no-std", "os::macos-apis
 maintenance = { status = "experimental" }
 
 [dependencies]
-objrs = { path = "../../", version = "0.0.2" }
+objrs = { path = "../../", version = "0.0.3-dev" }

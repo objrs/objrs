@@ -4,7 +4,6 @@
 // licenses and more information, see the COPYRIGHT file in this distribution's top-level directory.
 
 #![feature(proc_macro_diagnostic, proc_macro_span, proc_macro_def_site)]
-#![recursion_limit = "512"]
 
 extern crate core;
 extern crate proc_macro;

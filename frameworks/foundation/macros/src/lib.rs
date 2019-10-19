@@ -4,54 +4,32 @@
 // licenses and more information, see the COPYRIGHT file in this distribution's top-level directory.
 
 #![feature(proc_macro_diagnostic)]
-#![recursion_limit = "128"]
 
 extern crate core;
+extern crate objrs_utils;
 extern crate proc_macro;
 extern crate proc_macro2;
 extern crate quote;
 extern crate syn;
 
+#[cfg(test)]
+extern crate objrs_test_utils;
+
 use proc_macro2::Span;
 use quote::quote;
 use syn::{parse2, punctuated::Punctuated, spanned::Spanned, token::Comma, LitByteStr, LitStr};
 
-// TODO: pull this out into a separate library that can be shared between this crate and /macros.
-#[link(name = "c")]
-extern "C" {
-  fn arc4random_buf(buf: *mut u8, nbytes: usize);
-}
+#[cfg(not(test))]
+use objrs_utils::RandomIdentifier;
 
-#[inline(always)]
-fn random<T>() -> T {
-  let mut buf = unsafe { core::mem::uninitialized() };
-  unsafe {
-    arc4random_buf(&mut buf as *mut _ as *mut u8, core::mem::size_of::<T>());
-  }
-  return buf;
-}
-
-#[inline]
-fn random_identifier() -> [u8; 32] {
-  let uuid = random::<[u64; 2]>();
-  let mask = 0x0f0f0f0f0f0f0f0f;
-  let aaaaaaaa = 0x6161616161616161;
-  let symbol: [u64; 4] = [
-    aaaaaaaa + (uuid[0] & mask),
-    aaaaaaaa + ((uuid[0] >> 4) & mask),
-    aaaaaaaa + (uuid[1] & mask),
-    aaaaaaaa + ((uuid[1] >> 4) & mask),
-  ];
-  return unsafe { core::mem::transmute(symbol) };
-}
+#[cfg(test)]
+type RandomIdentifier = objrs_test_utils::FakeRandomIdentifier;
 
 fn make_literal(mut value: String) -> proc_macro2::TokenStream {
   let use_utf16 = value.bytes().any(|b| b == 0 || !b.is_ascii());
   value.push('\x00');
 
-  let random_id = &random_identifier();
-  let random_id = unsafe { core::str::from_utf8_unchecked(random_id) };
-
+  let random_id = &RandomIdentifier::new();
   let string_export_name = ["\x01L__unnamed_cfstring_.__objrs_str.", random_id].concat();
 
   let bytes_link_section;
@@ -119,5 +97,72 @@ pub fn nsstring(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
       // Return an empty NSString. This should help other diagnostic messages.
       return make_literal(String::new()).into();
     }
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  extern crate objrs_test_utils;
+
+  use super::*;
+
+  use objrs_test_utils::assert_tokens_eq;
+
+  #[test]
+  fn test_ascii_nsstring() {
+    let actual = make_literal(String::from("Hello, world!"));
+
+    let expected = quote! {{
+      extern crate objrs_frameworks_foundation as __objrs_root;
+
+      #[link_section = "__TEXT,__cstring,cstring_literals"]
+      #[export_name = "\u{1}L_.str.__objrs_str._default_fake_random_identifier_"]
+      #[doc(hidden)]
+      static BYTES: [__objrs_root::__objrs::u8; 14usize] = *b"Hello, world!\0";
+
+      #[link_section = "__DATA,__cfstring"]
+      #[export_name = "\u{1}L__unnamed_cfstring_.__objrs_str._default_fake_random_identifier_"]
+      #[doc(hidden)]
+      static STRING: __objrs_root::__objrs::CFConstantString = __objrs_root::__objrs::CFConstantString{
+          isa:    unsafe { &__objrs_root::__objrs::CFConstantStringClassReference },
+          info:   1992u32,
+          ptr:    unsafe { __objrs_root::__objrs::TransmuteHack { from: &BYTES }.to },
+          length: 14usize - 1,
+      };
+
+      unsafe { __objrs_root::__objrs::TransmuteHack::<_, &'static __objrs_root::NSString> { from: &STRING }.to }
+    }};
+
+    assert_tokens_eq!(actual, expected);
+  }
+
+  #[test]
+  fn test_unicode_nsstring() {
+    let actual = make_literal(String::from("こんにちは世界！"));
+
+    let expected = quote! {{
+      extern crate objrs_frameworks_foundation as __objrs_root;
+
+      #[link_section = "__TEXT,__ustring"]
+      #[export_name = "\u{1}l_.str.__objrs_str._default_fake_random_identifier_"]
+      #[doc(hidden)]
+      static BYTES: [__objrs_root::__objrs::u16; 9usize] = [
+        12371u16, 12435u16, 12395u16, 12385u16, 12399u16, 19990u16, 30028u16, 65281u16, 0u16
+      ];
+
+      #[link_section = "__DATA,__cfstring"]
+      #[export_name = "\u{1}L__unnamed_cfstring_.__objrs_str._default_fake_random_identifier_"]
+      #[doc(hidden)]
+      static STRING: __objrs_root::__objrs::CFConstantString = __objrs_root::__objrs::CFConstantString{
+          isa:    unsafe { &__objrs_root::__objrs::CFConstantStringClassReference },
+          info:   2000u32,
+          ptr:    unsafe { __objrs_root::__objrs::TransmuteHack { from: &BYTES }.to },
+          length: 9usize - 1,
+      };
+
+      unsafe { __objrs_root::__objrs::TransmuteHack::<_, &'static __objrs_root::NSString> { from: &STRING }.to }
+    }};
+
+    assert_tokens_eq!(actual, expected);
   }
 }

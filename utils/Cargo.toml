@@ -4,21 +4,12 @@
 # licenses and more information, see the COPYRIGHT file in this distribution's top-level directory.
 
 [package]
-name = "objrs_frameworks_metal"
+name = "objrs_utils"
 version = "0.0.3-dev"
 authors = ["Michael Bradshaw <mjbshaw@gmail.com>"]
 edition = "2018"
 license = "Apache-2.0 OR MIT OR MPL-2.0"
-description = "Bindings for Apple's Metal framework."
-repository = "https://gitlab.com/objrs/objrs"
-readme = "README.md"
-keywords = ["objc", "objective-c", "metal"]
-categories = ["api-bindings", "external-ffi-bindings", "no-std", "os::macos-apis"]
-
-[badges]
-maintenance = { status = "experimental" }
+description = "Common utilies for objrs crates."
 
 [dependencies]
-libc = { version = "0.2", default-features = false }
-objrs = { path = "../../", version = "0.0.3-dev" }
-objrs_frameworks_foundation = { path = "../foundation", version = "0.0.3-dev" }
+proc-macro2 = "1"

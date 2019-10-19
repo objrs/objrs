@@ -9,9 +9,8 @@ extern crate proc_macro2;
 extern crate quote;
 extern crate syn;
 
-use crate::gen::gensym::RandomIdentifier;
 use crate::parse::class_ref_attr::ClassRef;
-use crate::util::priv_ident;
+use crate::util::{priv_ident, RandomIdentifier};
 use proc_macro::Diagnostic;
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
@@ -111,7 +110,10 @@ pub fn gen_super_meta_ref_value(
 
 #[cfg(test)]
 mod tests {
+  extern crate objrs_test_utils;
+
   use super::*;
+  use objrs_test_utils::assert_tokens_eq;
   use syn::parse_quote;
 
   fn default_class() -> ClassRef {
@@ -138,7 +140,7 @@ mod tests {
         unsafe { &CLASS }
       });
     };
-    assert_eq!(actual.to_string(), expected.to_string());
+    assert_tokens_eq!(actual, expected);
   }
 
   #[test]
@@ -156,7 +158,7 @@ mod tests {
         unsafe { &CLASS }
       });
     };
-    assert_eq!(actual.to_string(), expected.to_string());
+    assert_tokens_eq!(actual, expected);
   }
 
   #[test]
@@ -174,6 +176,6 @@ mod tests {
         unsafe { &CLASS }
       });
     };
-    assert_eq!(actual.to_string(), expected.to_string());
+    assert_tokens_eq!(actual, expected);
   }
 }

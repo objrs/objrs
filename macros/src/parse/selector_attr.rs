@@ -98,8 +98,8 @@ use proc_macro::Diagnostic;
 use proc_macro2::Span;
 use syn::parse::{Parse, ParseStream};
 use syn::{
-  punctuated::Punctuated, spanned::Spanned, token::Comma, token::Default, ArgCaptured, Attribute,
-  Block, FnArg, ImplItemMethod, LitStr, MethodSig, Pat, TraitItemMethod, Type, Visibility,
+  punctuated::Punctuated, spanned::Spanned, token::Comma, token::Default, Attribute, Block, FnArg,
+  ImplItemMethod, LitStr, Pat, PatType, Signature, TraitItemMethod, Type, Visibility,
 };
 
 pub struct SelectorAttr {
@@ -157,26 +157,25 @@ fn is_instance_method(args: &Punctuated<FnArg, Comma>) -> bool {
     return false;
   }
 
-  let is_self_ident = |arg: &ArgCaptured| {
-    if let Pat::Ident(ref pat_ident) = arg.pat {
+  let is_self_ident = |pat_ty: &PatType| {
+    if let Pat::Ident(ref pat_ident) = *pat_ty.pat {
       return pat_ident.ident == "self";
     }
     return false;
   };
 
   match args[0] {
-    FnArg::SelfRef(_) => return true,
-    FnArg::SelfValue(_) => return true,
-    FnArg::Captured(ref arg) => return is_self_ident(arg),
-    _ => return false,
+    FnArg::Receiver(_) => return true,
+    FnArg::Typed(ref pat_ty) => return is_self_ident(pat_ty),
   }
 }
 
 fn is_impl_trait(arg: &FnArg) -> bool {
   match arg {
-    FnArg::Captured(ArgCaptured {
-      ty: Type::ImplTrait(_), ..
-    }) => return true,
+    FnArg::Typed(pat_ty) => match *pat_ty.ty {
+      Type::ImplTrait(_) => return true,
+      _ => return false,
+    },
     _ => return false,
   }
 }
@@ -187,7 +186,7 @@ pub enum ItemMethod {
 }
 
 impl ItemMethod {
-  fn sig(&self) -> &MethodSig {
+  fn sig(&self) -> &Signature {
     match self {
       ItemMethod::Impl(method) => return &method.sig,
       ItemMethod::Trait(method) => return &method.sig,
@@ -223,10 +222,10 @@ impl Method {
 
     // TODO: do some basic validation (e.g., # of arguments is correct, etc.).
     let is_instance_method = attr.method_type == MethodType::Instance
-      || (attr.method_type == MethodType::Auto && is_instance_method(&sig.decl.inputs));
+      || (attr.method_type == MethodType::Auto && is_instance_method(&sig.inputs));
 
     let (sel_string, expected_arg_count) = validate_selector(&attr.sel)?;
-    let arg_count = sig.decl.inputs.len() - is_instance_method as usize;
+    let arg_count = sig.inputs.len() - is_instance_method as usize;
     if arg_count != expected_arg_count {
       let error_msg = format!(
         "method `{}` has {} parameter{}{} but the selector has {}",
@@ -268,8 +267,7 @@ impl Method {
       );
     }
 
-    let is_generic =
-      !sig.decl.generics.params.is_empty() || sig.decl.inputs.iter().any(is_impl_trait);
+    let is_generic = !sig.generics.params.is_empty() || sig.inputs.iter().any(is_impl_trait);
 
     return Ok(Method {
       attr: attr,
@@ -279,7 +277,7 @@ impl Method {
     });
   }
 
-  pub fn sig(&self) -> &MethodSig {
+  pub fn sig(&self) -> &Signature {
     return self.method.sig();
   }
 

@@ -10,21 +10,20 @@ extern crate quote;
 extern crate syn;
 
 use crate::gen::gen_selector::gen_msg_recv;
-use crate::gen::gensym::RandomIdentifier;
 use crate::parse::attr::take_objrs_attr;
 use crate::parse::selector_attr::{ItemMethod, Method, MethodType, SelectorAttr};
-use crate::util::{is_instance_method, priv_ident_at};
+use crate::util::{is_instance_method, priv_ident_at, RandomIdentifier};
 use proc_macro::Diagnostic;
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens};
 use syn::{
   parse2, parse_quote, punctuated::Punctuated, spanned::Spanned, token::Comma, token::Extern, Abi,
-  Expr, ExprVerbatim, FnArg, GenericParam, Ident, ImplItemMethod, ImplItemVerbatim, LitByteStr,
-  LitStr, Pat, PatIdent, ReturnType, Stmt, Type,
+  Expr, FnArg, GenericParam, Ident, ImplItemMethod, LitByteStr, LitStr, Pat, PatIdent, ReturnType,
+  Stmt, Type,
 };
 
 pub struct ObjrsMethod {
-  pub msg_send: Option<ImplItemVerbatim>,
+  pub msg_send: Option<TokenStream>,
   pub msg_recv: Option<ImplItemMethod>,
   pub selector: SelectorAttr,
   pub is_instance_method: bool,
@@ -43,7 +42,7 @@ pub fn parse_selector_method(
   match take_objrs_attr(&mut method.attrs)? {
     Some(objrs_attr) => {
       selector_attr =
-        parse2(objrs_attr.tts).map_err(|e| e.span().unstable().error(e.to_string()))?;
+        parse2(objrs_attr.tokens).map_err(|e| e.span().unstable().error(e.to_string()))?;
     }
     None => {
       return Ok(Err(method));
@@ -76,16 +75,14 @@ pub fn parse_selector_method(
   if method.is_instance_method && method.attr.sel.value() == "dealloc" {
     msg_send = None;
   } else {
-    msg_send = Some(ImplItemVerbatim {
-      tts: transform_selector(
-        &method.attr,
-        method.impl_method().cloned().unwrap(), // TODO: this is an ugly hack.
-        is_generic_class,
-        empty_msg_recv,
-        None,
-        objrs_root,
-      )?,
-    });
+    msg_send = Some(transform_selector(
+      &method.attr,
+      method.impl_method().cloned().unwrap(), // TODO: this is an ugly hack.
+      is_generic_class,
+      empty_msg_recv,
+      None,
+      objrs_root,
+    )?);
   }
 
   return Ok(Ok(ObjrsMethod {
@@ -131,12 +128,12 @@ fn msg_send_fn(
   let selector_len = selector_string.len();
 
   let empty_tuple = parse_quote!(());
-  let return_type = match method.sig.decl.output {
+  let return_type = match method.sig.output {
     ReturnType::Default => &empty_tuple,
     ReturnType::Type(_, ref ty) => ty.as_ref(),
   };
 
-  let generics = &method.sig.decl.generics;
+  let generics = &method.sig.generics;
 
   let native_ty = quote!(#objrs_root::__objrs);
   let ref_hack;
@@ -160,7 +157,7 @@ fn msg_send_fn(
   }
 
   let where_clause = &generics.where_clause;
-  let mut inputs = method.sig.decl.inputs.clone();
+  let mut inputs = method.sig.inputs.clone();
   let self_arg_type;
   let self_arg_value;
   if !is_instance_method {
@@ -176,23 +173,8 @@ fn msg_send_fn(
       self_arg_value = quote!(Self::__objrs_class_ref());
     }
   } else {
-    match method.sig.decl.inputs[0] {
-      FnArg::SelfRef(ref self_ref) => {
-        if call_super {
-          self_arg_type = quote!(*mut #objrs_root::__objrs::runtime::objc_super);
-          self_arg_value = quote! {&mut #objrs_root::__objrs::runtime::objc_super {
-            receiver: #objrs_root::__objrs::core::mem::transmute(self),
-            super_class: Self::__objrs_super_class_ref(),
-          } as *mut _};
-        } else if self_ref.mutability.is_some() {
-          self_arg_type = quote!(&mut Self);
-          self_arg_value = quote!(self);
-        } else {
-          self_arg_type = quote!(&Self);
-          self_arg_value = quote!(self);
-        }
-      }
-      FnArg::SelfValue(_) => {
+    match method.sig.inputs[0] {
+      FnArg::Receiver(ref receiver) => {
         if call_super {
           self_arg_type = quote!(*mut #objrs_root::__objrs::runtime::objc_super);
           self_arg_value = quote! {&mut #objrs_root::__objrs::runtime::objc_super {
@@ -200,13 +182,17 @@ fn msg_send_fn(
             super_class: Self::__objrs_super_class_ref(),
           } as *mut _};
         } else {
-          self_arg_type = quote!(Self);
-          self_arg_value = quote!(self);
+          let ampersand = receiver.reference.as_ref().map(|(ampersand, _)| ampersand);
+          let lifetime = receiver.reference.as_ref().map(|(_, lifetime)| lifetime);
+          let mutability = &receiver.mutability;
+          let self_token = &receiver.self_token;
+          self_arg_type = quote!(#ampersand #lifetime #mutability Self);
+          self_arg_value = quote!(#self_token);
         }
       }
-      FnArg::Captured(ref arg) => {
-        let pat = &arg.pat;
-        let ty = &arg.ty;
+      FnArg::Typed(ref pat_ty) => {
+        let pat = &pat_ty.pat;
+        let ty = &pat_ty.ty;
         if call_super {
           self_arg_type = quote!(*mut #objrs_root::__objrs::runtime::objc_super);
           self_arg_value = quote! {&mut #objrs_root::__objrs::runtime::objc_super {
@@ -218,19 +204,18 @@ fn msg_send_fn(
           self_arg_value = quote!(#pat);
         }
       }
-      _ => panic!("BUG: unhandled self type"),
     }
   }
   inputs.insert(1, parse_quote!(_: #objrs_root::__objrs::UninitPtr));
   // TODO: handle variadic.
-  let output = &method.sig.decl.output;
+  let output = &method.sig.output;
 
   let mut tail_arg_types: Punctuated<&Type, Comma> = Punctuated::new();
   let mut tail_arg_values: Punctuated<&Ident, Comma> = Punctuated::new();
   for arg in inputs.iter().skip(2) {
-    if let FnArg::Captured(ref captured) = arg {
-      tail_arg_types.push(&captured.ty);
-      if let Pat::Ident(ref ident) = captured.pat {
+    if let FnArg::Typed(ref pat_ty) = arg {
+      tail_arg_types.push(&pat_ty.ty);
+      if let Pat::Ident(ref ident) = *pat_ty.pat {
         tail_arg_values.push(&ident.ident);
       } else {
         panic!("BUG: unexpected uncaptured function argument");
@@ -327,14 +312,14 @@ pub fn transform_selector(
     if attr.path.leading_colon.is_none() && attr.path.segments.len() == 1 {
       let segment = attr.path.segments.iter().next().expect("BUG: expected exactly 1 segment");
       if segment.ident == "inline" && segment.arguments.is_empty() {
-        inline = core::mem::replace(&mut attr.tts, quote!((always)));
+        inline = core::mem::replace(&mut attr.tokens, quote!((always)));
         break;
       }
     }
   }
 
   let is_instance_method = attr.method_type == MethodType::Instance
-    || (attr.method_type == MethodType::Auto && is_instance_method(&method.sig.decl.inputs));
+    || (attr.method_type == MethodType::Auto && is_instance_method(&method.sig.inputs));
 
   let mut self_arg_value;
   if is_instance_method {
@@ -343,13 +328,12 @@ pub fn transform_selector(
     self_arg_value = quote!(unsafe { #objrs_root::__objrs::UNINIT_PTR });
   }
 
-  for (n, arg) in method.sig.decl.inputs.iter_mut().enumerate() {
+  for (n, arg) in method.sig.inputs.iter_mut().enumerate() {
     match arg {
-      FnArg::SelfRef(_) => continue,
-      FnArg::SelfValue(_) => continue,
-      FnArg::Captured(ref mut captured) => {
+      FnArg::Receiver(_) => continue,
+      FnArg::Typed(ref mut pat_ty) => {
         let span;
-        match captured.pat {
+        match *pat_ty.pat {
           Pat::Ident(ref mut ident) => {
             if n == 0 && ident.ident == "self" {
               continue;
@@ -408,7 +392,7 @@ pub fn transform_selector(
           }
           _ => {
             return Err(
-              captured
+              pat_ty
                 .pat
                 .span()
                 .unstable()
@@ -418,9 +402,9 @@ pub fn transform_selector(
           }
         }
 
-        if let Type::ImplTrait(_) = captured.ty {
+        if let Type::ImplTrait(_) = *pat_ty.ty {
           return Err(
-            captured
+            pat_ty
               .ty
               .span()
               .unstable()
@@ -434,29 +418,28 @@ pub fn transform_selector(
           self_arg_value = quote!(#ident);
         }
 
-        captured.pat = Pat::Ident(PatIdent {
+        *pat_ty.pat = Pat::Ident(PatIdent {
+          attrs: Vec::new(),
           by_ref: None,
           mutability: None,
           ident: ident,
           subpat: None,
         });
       }
-      FnArg::Inferred(_) => panic!("BUG: unexpected inferred function argument"),
-      FnArg::Ignored(_) => panic!("BUG: unexpected ignored function argument"),
     }
   }
 
   let mut tail_arg_values: Punctuated<&Ident, Comma> = Punctuated::new();
-  for arg in method.sig.decl.inputs.iter().skip(is_instance_method as usize) {
-    if let FnArg::Captured(ref captured) = arg {
-      if let Pat::Ident(ref ident) = captured.pat {
+  for arg in method.sig.inputs.iter().skip(is_instance_method as usize) {
+    if let FnArg::Typed(ref pat_ty) = arg {
+      if let Pat::Ident(ref ident) = *pat_ty.pat {
         tail_arg_values.push(&ident.ident);
       }
     }
   }
 
   let mut generics: Punctuated<&dyn ToTokens, Comma> = Punctuated::new();
-  for generic in method.sig.decl.generics.params.iter() {
+  for generic in method.sig.generics.params.iter() {
     match generic {
       GenericParam::Type(ref param) => generics.push(&param.ident),
       GenericParam::Const(ref param) => generics.push(&param.ident),
@@ -472,11 +455,9 @@ pub fn transform_selector(
     msg_send_name = priv_ident_at(msg_send_name_str, method.sig.ident.span());
   }
   method.block.stmts.clear();
-  method.block.stmts.push(Stmt::Expr(Expr::Verbatim(ExprVerbatim {
-    tts: quote!{
-      #[allow(unused_unsafe)]
-      return Self::#msg_send_name::<#generics>(#self_arg_value, unsafe{ #objrs_root::__objrs::UNINIT_PTR }, #tail_arg_values);
-    },
+  method.block.stmts.push(Stmt::Expr(Expr::Verbatim(quote!{
+    #[allow(unused_unsafe)]
+    return Self::#msg_send_name::<#generics>(#self_arg_value, unsafe{ #objrs_root::__objrs::UNINIT_PTR }, #tail_arg_values);
   })));
 
   // let msg_send = gen_msg_send(method, class_name, is_generic_class, objrs_root);
@@ -505,10 +486,10 @@ pub fn transform_selector(
       name: Some(LitStr::new("C", Span::call_site())),
     });
     // TODO: set the span of this to either the method name or the selector string so it's clear where the problem if there are duplicate symbol conflicts.
-    clone.sig.decl.inputs.insert(1, parse_quote!(_: &'static #objrs_root::Sel));
+    clone.sig.inputs.insert(1, parse_quote!(_: &'static #objrs_root::Sel));
     let brace = clone.block.brace_token.clone();
     clone.block = parse_quote! {{
-      return unsafe { #objrs_root::__objrs::core::mem::uninitialized() };
+      unsafe { #objrs_root::__objrs::core::hint::unreachable_unchecked(); }
     }};
     clone.block.brace_token = brace;
     msg_recv = Some(clone);

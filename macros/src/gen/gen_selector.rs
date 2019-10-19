@@ -22,19 +22,15 @@ use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens};
 use syn::{
   parse_quote, punctuated::Punctuated, spanned::Spanned, token::Comma, token::Extern, Abi,
-  AttrStyle, Attribute, Block, Expr, ExprVerbatim, FnArg, FnDecl, GenericParam, Ident,
-  ImplItemMethod, Item, ItemVerbatim, LitStr, MethodSig, Pat, PatIdent, ReturnType, Stmt, Type,
-  Visibility,
+  AttrStyle, Attribute, Block, Expr, FnArg, GenericParam, Ident, ImplItemMethod, Item, LitStr, Pat,
+  PatIdent, ReturnType, Signature, Stmt, Type, Visibility,
 };
 
 /// Filters out any unwanted attributes from the vector.
 fn filter_out_attrs(attrs: &mut Vec<Attribute>, unwanted: &[&str]) {
-  attrs.retain(|attr| {
-    if attr.style != AttrStyle::Outer {
-      return true;
-    }
-
-    return !unwanted.iter().any(|unwanted_ident| attr.path.is_ident(unwanted_ident));
+  attrs.retain(|attr| match attr.style {
+    AttrStyle::Outer => return !unwanted.iter().any(|ident| attr.path.is_ident(ident)),
+    _ => return true,
   });
 }
 
@@ -57,10 +53,10 @@ fn make_extern_c_abi(abi: &mut Option<Abi>) {
 }
 
 pub fn gen_msg_recv_sig(
-  sig: &MethodSig,
+  sig: &Signature,
   is_instance_method: bool,
   objrs_root: &Ident,
-) -> MethodSig {
+) -> Signature {
   // TODO: let objc_method_family to be explicitly specified?
   // TODO: take the method family into account.
 
@@ -73,12 +69,11 @@ pub fn gen_msg_recv_sig(
 
   if !is_instance_method {
     sig
-      .decl
       .inputs
       .insert(0, parse_quote!(_: #objrs_root::__objrs::core::ptr::NonNull<#objrs_root::Class>));
   }
   // TODO: consider allowing the selector to be accessed like in Objective-C (via _cmd).
-  sig.decl.inputs.insert(1, parse_quote!(_: &'static #objrs_root::Sel));
+  sig.inputs.insert(1, parse_quote!(_: &'static #objrs_root::Sel));
 
   return sig;
 }
@@ -151,7 +146,7 @@ fn sel_ref_value(sel: LitStr, objrs_root: &Ident) -> Result<TokenStream, Diagnos
 }
 
 fn self_ty_and_value(
-  decl: &FnDecl,
+  sig: &Signature,
   class_name: &str,
   call_super: bool,
   is_instance_method: bool,
@@ -182,28 +177,27 @@ fn self_ty_and_value(
     return Ok((quote!(&'static #objrs_root::Class), self_arg_value));
   }
 
-  match decl.inputs[0] {
-    FnArg::SelfRef(ref self_ref) => {
-      let mutability = &self_ref.mutability;
-      return Ok((quote!(&#mutability Self), quote!(self)));
+  match sig.inputs[0] {
+    FnArg::Receiver(ref receiver) => {
+      let ampersand = receiver.reference.as_ref().map(|(ampersand, _)| ampersand);
+      let lifetime = receiver.reference.as_ref().map(|(_, lifetime)| lifetime);
+      let mutability = &receiver.mutability;
+      let self_token = &receiver.self_token;
+      return Ok((quote!(#ampersand #lifetime #mutability Self), quote!(#self_token)));
     }
-    FnArg::SelfValue(_) => {
-      return Ok((quote!(Self), quote!(self)));
-    }
-    FnArg::Captured(ref arg) => {
-      let ty = &arg.ty;
-      let pat = &arg.pat;
+    FnArg::Typed(ref pat_ty) => {
+      let ty = &pat_ty.ty;
+      let pat = &pat_ty.pat;
       return Ok((quote!(#ty), quote!(#pat)));
     }
-    _ => panic!("BUG: unhandled self type"),
   }
 }
 
 pub fn gen_msg_send_sig(
-  sig: &MethodSig,
+  sig: &Signature,
   is_instance_method: bool,
   objrs_root: &Ident,
-) -> MethodSig {
+) -> Signature {
   // TODO: let objc_method_family to be explicitly specified?
   // TODO: take the method family into account.
 
@@ -216,10 +210,10 @@ pub fn gen_msg_send_sig(
 
   if !is_instance_method {
     // Inject a parameter that is compatible with *mut objrs::Class.
-    sig.decl.inputs.insert(0, parse_quote!(_: #objrs_root::__objrs::UninitPtr));
+    sig.inputs.insert(0, parse_quote!(_: #objrs_root::__objrs::UninitPtr));
   }
   // Inject a parameter that is compatible with *mut objrs::Sel.
-  sig.decl.inputs.insert(1, parse_quote!(_: #objrs_root::__objrs::UninitPtr));
+  sig.inputs.insert(1, parse_quote!(_: #objrs_root::__objrs::UninitPtr));
 
   return sig;
 }
@@ -246,9 +240,12 @@ pub fn gen_msg_send(
   };
 
   fn is_inline_attr(attr: &mut Attribute) -> bool {
-    return attr.style == AttrStyle::Outer && attr.path.is_ident("inline");
+    match attr.style {
+      AttrStyle::Outer => return attr.path.is_ident("inline"),
+      _ => return false,
+    }
   }
-  let inline = DrainExt::drain(&mut method.attrs, is_inline_attr).last().map(|attr| attr.tts);
+  let inline = DrainExt::drain(&mut method.attrs, is_inline_attr).last().map(|attr| attr.tokens);
   let mut inline =
     inline.unwrap_or_else(|| if call_super { quote!((always)) } else { quote!((never)) });
   let ref_hack_inline;
@@ -275,7 +272,7 @@ pub fn gen_msg_send(
     objc_send_stret = priv_ident("objc_msgSend_stret");
   }
 
-  let output = &method.sig.decl.output;
+  let output = &method.sig.output;
   let msg_send;
   match output {
     ReturnType::Default => {
@@ -297,16 +294,16 @@ pub fn gen_msg_send(
   }
 
   let (self_arg_type, self_arg_value) =
-    self_ty_and_value(&method.sig.decl, class_name, call_super, is_instance_method, objrs_root)?;
+    self_ty_and_value(&method.sig, class_name, call_super, is_instance_method, objrs_root)?;
 
   let mut tail_arg_types: Punctuated<&Type, Comma> = Punctuated::new();
   let mut tail_arg_values: Punctuated<&Ident, Comma> = Punctuated::new();
-  for arg in method.sig.decl.inputs.iter().skip(2) {
-    let captured = if let FnArg::Captured(ref captured) = arg { Some(captured) } else { None };
-    let captured = captured.unwrap();
-    tail_arg_types.push(&captured.ty);
+  for arg in method.sig.inputs.iter().skip(2) {
+    let pat_ty = if let FnArg::Typed(ref v) = arg { Some(v) } else { None };
+    let pat_ty = pat_ty.unwrap();
+    tail_arg_types.push(&pat_ty.ty);
 
-    let ident = if let Pat::Ident(ref ident) = captured.pat { Some(ident) } else { None };
+    let ident = if let Pat::Ident(ref ident) = *pat_ty.pat { Some(ident) } else { None };
     let ident = ident.unwrap();
     tail_arg_values.push(&ident.ident);
   }
@@ -340,9 +337,7 @@ pub fn gen_msg_send(
 
     return unsafe { msg_send(this, sel as *const _, #tail_arg_values) };
   };
-  method.block.stmts.push(Stmt::Item(Item::Verbatim(ItemVerbatim {
-    tts: fn_body,
-  })));
+  method.block.stmts.push(Stmt::Item(Item::Verbatim(fn_body)));
 
   return Ok(method);
 }
@@ -376,12 +371,11 @@ pub fn gen_trampoline(method: &Method, objrs_root: &Ident) -> Result<ImplItemMet
     self_arg_value = quote!(#objrs_root::__objrs::UNINIT_PTR);
   }
 
-  for (n, arg) in method.sig.decl.inputs.iter_mut().enumerate() {
+  for (n, arg) in method.sig.inputs.iter_mut().enumerate() {
     match arg {
-      FnArg::SelfRef(_) => continue,
-      FnArg::SelfValue(_) => continue,
-      FnArg::Captured(ref mut captured) => {
-        match captured.pat {
+      FnArg::Receiver(_) => continue,
+      FnArg::Typed(ref mut pat_ty) => {
+        match *pat_ty.pat {
           Pat::Ident(ref mut ident) => {
             if is_instance_method && n == 0 && ident.ident == "self" {
               continue;
@@ -410,7 +404,8 @@ pub fn gen_trampoline(method: &Method, objrs_root: &Ident) -> Result<ImplItemMet
           }
           Pat::Wild(ref pat_wild) => {
             let ident = Ident::new(&format!("_arg{}", n), pat_wild.span());
-            captured.pat = Pat::Ident(PatIdent {
+            *pat_ty.pat = Pat::Ident(PatIdent {
+              attrs: Vec::new(),
               by_ref: None,
               mutability: None,
               ident: ident,
@@ -419,7 +414,7 @@ pub fn gen_trampoline(method: &Method, objrs_root: &Ident) -> Result<ImplItemMet
           }
           _ => {
             return Err(
-              captured
+              pat_ty
                 .pat
                 .span()
                 .unstable()
@@ -433,22 +428,20 @@ pub fn gen_trampoline(method: &Method, objrs_root: &Ident) -> Result<ImplItemMet
           self_arg_value = quote!(_arg0);
         }
       }
-      FnArg::Inferred(_) => panic!("BUG: unexpected inferred function argument"),
-      FnArg::Ignored(_) => panic!("BUG: unexpected ignored function argument"),
     }
   }
 
   let mut tail_arg_values: Punctuated<&Ident, Comma> = Punctuated::new();
-  for arg in method.sig.decl.inputs.iter().skip(is_instance_method as usize) {
-    if let FnArg::Captured(ref captured) = arg {
-      if let Pat::Ident(ref ident) = captured.pat {
+  for arg in method.sig.inputs.iter().skip(is_instance_method as usize) {
+    if let FnArg::Typed(ref pat_ty) = arg {
+      if let Pat::Ident(ref ident) = *pat_ty.pat {
         tail_arg_values.push(&ident.ident);
       }
     }
   }
 
   let mut generics: Punctuated<&dyn ToTokens, Comma> = Punctuated::new();
-  for generic in method.sig.decl.generics.params.iter() {
+  for generic in method.sig.generics.params.iter() {
     match generic {
       GenericParam::Type(ref param) => generics.push(&param.ident),
       GenericParam::Const(ref param) => generics.push(&param.ident),
@@ -460,10 +453,8 @@ pub fn gen_trampoline(method: &Method, objrs_root: &Ident) -> Result<ImplItemMet
     &["__objrs_msg_send_", method.sig.ident.to_string().as_ref()].concat(),
     method.sig.ident.span(),
   );
-  method.block.stmts.push(Stmt::Expr(Expr::Verbatim(ExprVerbatim {
-    tts: quote!{
-      return Self::#msg_send_name::<#generics>(#self_arg_value, #objrs_root::__objrs::UNINIT_PTR, #tail_arg_values);
-    },
+  method.block.stmts.push(Stmt::Expr(Expr::Verbatim(quote!{
+    return Self::#msg_send_name::<#generics>(#self_arg_value, #objrs_root::__objrs::UNINIT_PTR, #tail_arg_values);
   })));
 
   return Ok(method);
@@ -940,9 +931,11 @@ pub fn gen_trampoline(method: &Method, objrs_root: &Ident) -> Result<ImplItemMet
 
 #[cfg(test)]
 mod tests {
+  extern crate objrs_test_utils;
+
   use super::*;
   use crate::parse::selector_attr::{ItemMethod, MethodType, SelectorAttr};
-  use quote::ToTokens;
+  use objrs_test_utils::assert_tokens_eq;
   use syn::parse_quote;
 
   #[test]
@@ -969,7 +962,7 @@ mod tests {
     };
     let method = gen_msg_recv(&method, "ClassName", None, &objrs_root).unwrap();
 
-    let expected: ImplItemMethod = parse_quote! {
+    let expected = quote! {
       #[doc(hidden)]
       #[export_name = "\u{1}-[ClassName foo:bar:]"]
       extern "C" fn __objrs_msg_recv_foo_bar(&self, _: &'static __objrs_root::Sel, arg1: u32, arg2: bool) -> f32 {
@@ -978,7 +971,7 @@ mod tests {
         return baz();
       }
     };
-    assert_eq!(method.into_token_stream().to_string(), expected.into_token_stream().to_string());
+    assert_tokens_eq!(method, expected);
   }
 
   #[test]
@@ -1001,12 +994,12 @@ mod tests {
     };
     let method = gen_msg_recv(&method, "ClassName", Some("Category"), &objrs_root).unwrap();
 
-    let expected: ImplItemMethod = parse_quote! {
+    let expected = quote! {
       #[doc(hidden)]
       #[export_name = "\u{1}+[ClassName(Category) baz]"]
       unsafe extern "C" fn __objrs_msg_recv_baz(_: __objrs_root::__objrs::core::ptr::NonNull<__objrs_root::Class>, _: &'static __objrs_root::Sel) {
       }
     };
-    assert_eq!(method.into_token_stream().to_string(), expected.into_token_stream().to_string());
+    assert_tokens_eq!(method, expected);
   }
 }

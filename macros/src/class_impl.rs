@@ -13,11 +13,10 @@ use crate::class::{
 use crate::gen::class_ref::{
   gen_class_ref_value, gen_super_class_ref_value, gen_super_meta_ref_value,
 };
-use crate::gen::gensym::RandomIdentifier;
 use crate::gen::ivar::transform_ivars;
 use crate::parse::impl_attr::ImplAttr;
 use crate::selector::{parse_selector_method, ObjrsMethod};
-use crate::util::{is_instance_method, link_attribute, priv_ident};
+use crate::util::{is_instance_method, link_attribute, priv_ident, RandomIdentifier};
 use proc_macro::Diagnostic;
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
@@ -78,10 +77,7 @@ fn method_type(
   is_instance_method: bool,
   objrs_root: &Ident,
 ) -> TokenStream {
-  assert!(
-    method.sig.decl.inputs.len() >= 2,
-    "BUG: selector methods should always have >= 2 arguments"
-  );
+  assert!(method.sig.inputs.len() >= 2, "BUG: selector methods should always have >= 2 arguments");
 
   let native_ty = quote!(#objrs_root::__objrs);
 
@@ -96,7 +92,7 @@ fn method_type(
     arg0 = b'#';
   }
 
-  let last_input_index = method.sig.decl.inputs.len() - 1;
+  let last_input_index = method.sig.inputs.len() - 1;
 
   // TDOO: this is an ugly hack. We need to NUL terminate this some how, but this isn't elegant at all.
   let mut prev_args = priv_ident("ARGS_1");
@@ -115,21 +111,19 @@ fn method_type(
 
   let mut prev_frame_offset = priv_ident("FrameOffset2");
   let mut total_frame_size = quote!(SIZE_OF_USIZE * 2);
-  for (i, input) in method.sig.decl.inputs.iter().enumerate().skip(2) {
+  for (i, input) in method.sig.inputs.iter().enumerate().skip(2) {
     let value;
     if i == 2 {
       value = quote!(SIZE_OF_USIZE * 2);
     } else {
-      let previous_type = match method.sig.decl.inputs[i - 1] {
-        FnArg::Captured(ref captured) => &captured.ty,
-        FnArg::Ignored(ref ty) => ty,
+      let previous_type = match method.sig.inputs[i - 1] {
+        FnArg::Typed(ref pat_ty) => &pat_ty.ty,
         _ => panic!("BUG: unexpected argument type"),
       };
       value = quote!(#prev_frame_offset::VALUE + #objrs_root::__objrs::core::mem::size_of::<#previous_type>());
     }
     let input_type = match input {
-      FnArg::Captured(ref captured) => &captured.ty,
-      FnArg::Ignored(ref ty) => ty,
+      FnArg::Typed(ref pat_ty) => &pat_ty.ty,
       _ => panic!("BUG: unexpected argument type"),
     };
     // let encoded = type_encoding(input_type);
@@ -161,7 +155,7 @@ fn method_type(
 
   let encoded;
   let encoded_len;
-  match method.sig.decl.output {
+  match method.sig.output {
     ReturnType::Default => {
       encoded = quote!(b'v');
       encoded_len = quote!(1usize);
@@ -648,14 +642,15 @@ fn parse_class_name(ty: &Type) -> Result<LitStr, Diagnostic> {
     Type::Group(inner) => return parse_class_name(inner.elem.as_ref()),
     Type::Infer(_) => Err("inferred type"),
     Type::Macro(_) => Err("macro"),
-    Type::Verbatim(_) => Err("unknown type"),
+    _ => Err("unknown type"),
   };
   let error_prefix = "expected path type, found ";
   let note = "the #[objrs(impl)] macro may only be applied to impl blocks for path types (e.g., \
               `foo::bar::Baz`)";
   match last_segment {
-    Ok(Some(pair)) => {
-      return Ok(LitStr::new(&pair.value().ident.to_string(), pair.value().ident.span()));
+    Ok(Some(path_segment)) => {
+      let ident = &path_segment.ident;
+      return Ok(LitStr::new(&ident.to_string(), ident.span()));
     } // TODO: use def_site.
     Ok(None) => {
       return Err(ty.span().unstable().error("expected identifer at end of type path").note(note));
@@ -695,9 +690,8 @@ pub fn transform_impl(attr: ImplAttr, input: TokenStream) -> Result<TokenStream,
   let mut trait_name = attr.trait_name.map(|lit| lit.value());
   if let Some((_, ref path, _)) = item.trait_ {
     if trait_name.is_none() {
-      trait_name = Some(
-        path.segments.last().expect("BUG: trait has no path segments").value().ident.to_string(),
-      );
+      trait_name =
+        Some(path.segments.last().expect("BUG: trait has no path segments").ident.to_string());
     }
   }
   let objrs_root = priv_ident("__objrs_root");
@@ -716,7 +710,7 @@ pub fn transform_impl(attr: ImplAttr, input: TokenStream) -> Result<TokenStream,
         )? {
           Ok(objrs_method) => objrs_method,
           Err(mut original_method) => {
-            if is_instance_method(&original_method.sig.decl.inputs) {
+            if is_instance_method(&original_method.sig.inputs) {
               transform_ivars(&mut original_method, &objrs_root)?;
             }
             non_methods.push(ImplItem::Method(original_method));

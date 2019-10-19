@@ -4,16 +4,27 @@
 // licenses and more information, see the COPYRIGHT file in this distribution's top-level directory.
 
 extern crate core;
+extern crate objrs_utils;
 extern crate proc_macro;
 extern crate proc_macro2;
 extern crate syn;
 
-use syn::{punctuated::Punctuated, token::Comma, ArgCaptured, AttrStyle, Attribute, FnArg, Pat};
+#[cfg(test)]
+extern crate objrs_test_utils;
+
+use syn::{punctuated::Punctuated, token::Comma, AttrStyle, Attribute, FnArg, Pat, PatType};
+
+#[cfg(not(test))]
+pub use objrs_utils::RandomIdentifier;
+
+#[cfg(test)]
+pub type RandomIdentifier = objrs_test_utils::FakeRandomIdentifier;
 
 pub fn link_attribute(attrs: &[Attribute]) -> Option<&Attribute> {
   for attr in attrs {
-    if attr.style == AttrStyle::Outer && attr.path.is_ident("link") {
-      return Some(&attr);
+    match attr.style {
+      AttrStyle::Outer if attr.path.is_ident("link") => return Some(&attr),
+      _ => continue,
     }
   }
   return None;
@@ -24,18 +35,16 @@ pub fn is_instance_method(args: &Punctuated<FnArg, Comma>) -> bool {
     return false;
   }
 
-  let is_self_ident = |arg: &ArgCaptured| {
-    if let Pat::Ident(ref pat_ident) = arg.pat {
+  let is_self_ident = |pat_ty: &PatType| {
+    if let Pat::Ident(ref pat_ident) = *pat_ty.pat {
       return pat_ident.ident == "self";
     }
     return false;
   };
 
   match args[0] {
-    FnArg::SelfRef(_) => return true,
-    FnArg::SelfValue(_) => return true,
-    FnArg::Captured(ref arg) => return is_self_ident(arg),
-    _ => return false,
+    FnArg::Receiver(_) => return true,
+    FnArg::Typed(ref pat_ty) => return is_self_ident(pat_ty),
   }
 }
 
