@@ -44,8 +44,8 @@ impl ObjrsAttr {
   fn transform(self, input: TokenStream) -> Result<TokenStream, Diagnostic> {
     match self {
       ObjrsAttr::Impl(attr) => return transform_impl(attr, input),
-      ObjrsAttr::Class(attr) => return transform_class(Class::new(input, attr)?),
-      ObjrsAttr::Protocol(attr) => return transform_protocol(Protocol::new(input, attr)?),
+      ObjrsAttr::Class(attr) => return transform_class(Class::new(attr, input)?),
+      ObjrsAttr::Protocol(attr) => return transform_protocol(Protocol::new(attr, input)?),
     }
   }
 }

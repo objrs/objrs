@@ -234,7 +234,7 @@ pub struct Class {
 }
 
 impl Class {
-  pub fn new(input: TokenStream, attr: ClassAttr) -> Result<Class, Diagnostic> {
+  pub fn new(attr: ClassAttr, input: TokenStream) -> Result<Class, Diagnostic> {
     let mut item;
     match parse2::<ItemStruct>(input) {
       Ok(value) => item = value,

@@ -233,7 +233,7 @@ pub struct ClassImpl {
 }
 
 impl ClassImpl {
-  pub fn new(input: TokenStream, attr: ImplAttr) -> Result<ClassImpl, Diagnostic> {
+  pub fn new(attr: ImplAttr, input: TokenStream) -> Result<ClassImpl, Diagnostic> {
     let mut item;
     match parse2::<ItemImpl>(input) {
       Ok(value) => item = value,
@@ -276,7 +276,7 @@ impl ClassImpl {
             if let Some(ref default) = method.defaultness {
               return Err(default.span.unstable().error("selector methods may not be `default`"));
             }
-            let objrs_method = Method::new(ItemMethod::Impl(method), selector_attr)?;
+            let objrs_method = Method::new(selector_attr, ItemMethod::Impl(method))?;
             validate_method(&objrs_method, attr.force_extern)?;
             if objrs_method.is_instance_method {
               instance_methods.push(objrs_method);

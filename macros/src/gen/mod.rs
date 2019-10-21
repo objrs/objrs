@@ -4,6 +4,7 @@
 // licenses and more information, see the COPYRIGHT file in this distribution's top-level directory.
 
 pub mod class_ref;
+mod field_offsets;
 pub mod gen_class;
 mod gen_impl;
 pub mod gen_protocol;

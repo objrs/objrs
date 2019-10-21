@@ -49,7 +49,7 @@ pub fn parse_selector_method(
     }
   }
 
-  let method = Method::new(ItemMethod::Impl(method), selector_attr)?;
+  let method = Method::new(selector_attr, ItemMethod::Impl(method))?;
 
   if let Some(optional) = method.attr.optional {
     return Err(
