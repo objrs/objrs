@@ -209,7 +209,7 @@ pub struct Method {
 }
 
 impl Method {
-  pub fn new(method: ItemMethod, attr: SelectorAttr) -> Result<Method, Diagnostic> {
+  pub fn new(attr: SelectorAttr, method: ItemMethod) -> Result<Method, Diagnostic> {
     let is_protocol = if let ItemMethod::Trait(_) = method { true } else { false };
 
     let sig = method.sig();

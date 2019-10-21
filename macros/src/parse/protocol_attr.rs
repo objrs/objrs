@@ -129,7 +129,7 @@ fn parse_method(mut method: TraitItemMethod) -> Result<Method, Diagnostic> {
     Some(objrs_attr) => {
       let selector_attr =
         parse2(objrs_attr.tokens).map_err(|e| e.span().unstable().error(e.to_string()))?;
-      let objrs_method = Method::new(ItemMethod::Trait(method), selector_attr)?;
+      let objrs_method = Method::new(selector_attr, ItemMethod::Trait(method))?;
 
       if objrs_method.is_instance_method && objrs_method.attr.sel.value() == "dealloc" {
         return Err(
@@ -167,7 +167,7 @@ pub struct Protocol {
 }
 
 impl Protocol {
-  pub fn new(input: TokenStream, attr: ProtocolAttr) -> Result<Protocol, Diagnostic> {
+  pub fn new(attr: ProtocolAttr, input: TokenStream) -> Result<Protocol, Diagnostic> {
     let mut item;
     match parse2::<ItemTrait>(input) {
       Ok(value) => item = value,
