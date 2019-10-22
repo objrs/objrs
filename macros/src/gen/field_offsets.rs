@@ -13,6 +13,7 @@ use crate::util::priv_ident;
 use proc_macro2::{Literal, TokenStream, TokenTree};
 use quote::quote;
 
+#[allow(unused)] // TODO: remove this.
 fn field_offsets(class: &Class) -> TokenStream {
   let iter = class.item.fields.iter();
   if iter.len() == 0 {
