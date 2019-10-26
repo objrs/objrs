@@ -11,12 +11,19 @@ pub trait SpanExt {
 }
 
 impl SpanExt for proc_macro2::Span {
-  #[cfg(procmacro2_semver_exempt)]
+  // TODO: report an issue about not being able to use proc_macro::Span in unit tests. This doesn't
+  // create a private identifier at all. But for unit tests, we don't check spans, so it's okay.
+  #[cfg(test)]
+  fn resolved_at_def_site(self: Self) -> Self {
+    return self;
+  }
+
+  #[cfg(all(procmacro2_semver_exempt, not(test)))]
   fn resolved_at_def_site(self: Self) -> Self {
     return self.resolved_at(proc_macro2::Span::def_site());
   }
 
-  #[cfg(not(procmacro2_semver_exempt))]
+  #[cfg(all(not(procmacro2_semver_exempt), not(test)))]
   fn resolved_at_def_site(self: Self) -> Self {
     return self.unstable().resolved_at(proc_macro::Span::def_site()).into();
   }

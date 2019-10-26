@@ -120,8 +120,8 @@ mod tests {
     return ClassRef {
       class: parse_quote!("TheClass"),
       ident: parse_quote!(CLASS_REF),
-      sync_hack_ty: parse_quote!(objrs::__objrs::SyncHack),
-      class_ty: parse_quote!(objrs::Class),
+      sync_hack_ty: parse_quote!(__objrs_root::__objrs::SyncHack),
+      class_ty: parse_quote!(__objrs_root::Class),
     };
   }
 
@@ -132,10 +132,10 @@ mod tests {
     let expected = quote! {
       #[link_section = "__DATA,__objc_classrefs,regular,no_dead_strip"]
       #[export_name = "\u{1}L_OBJC_CLASSLIST_REFERENCES_$_.__objrs_class._default_fake_random_identifier_.TheClass"]
-      static CLASS_REF: objrs::__objrs::SyncHack<&'static objrs::Class> = objrs::__objrs::SyncHack({
+      static CLASS_REF: __objrs_root::__objrs::SyncHack<&'static __objrs_root::Class> = __objrs_root::__objrs::SyncHack({
         extern "C" {
           #[link_name = "OBJC_CLASS_$_TheClass"]
-          static CLASS: objrs::Class;
+          static CLASS: __objrs_root::Class;
         }
         unsafe { &CLASS }
       });
@@ -150,10 +150,10 @@ mod tests {
     let expected = quote! {
       #[link_section = "__DATA,__objc_superrefs,regular,no_dead_strip"]
       #[export_name = "\u{1}L_OBJC_CLASSLIST_SUP_REFS_$_.__objrs_class._default_fake_random_identifier_.TheClass"]
-      static CLASS_REF: objrs::__objrs::SyncHack<&'static objrs::Class> = objrs::__objrs::SyncHack({
+      static CLASS_REF: __objrs_root::__objrs::SyncHack<&'static __objrs_root::Class> = __objrs_root::__objrs::SyncHack({
         extern "C" {
           #[link_name = "OBJC_CLASS_$_TheClass"]
-          static CLASS: objrs::Class;
+          static CLASS: __objrs_root::Class;
         }
         unsafe { &CLASS }
       });
@@ -168,10 +168,10 @@ mod tests {
     let expected = quote! {
       #[link_section = "__DATA,__objc_superrefs,regular,no_dead_strip"]
       #[export_name = "\u{1}L_OBJC_CLASSLIST_SUP_REFS_$_.__objrs_class._default_fake_random_identifier_.TheClass"]
-      static CLASS_REF: objrs::__objrs::SyncHack<&'static objrs::Class> = objrs::__objrs::SyncHack({
+      static CLASS_REF: __objrs_root::__objrs::SyncHack<&'static __objrs_root::Class> = __objrs_root::__objrs::SyncHack({
         extern "C" {
           #[link_name = "OBJC_METACLASS_$_TheClass"]
-          static CLASS: objrs::Class;
+          static CLASS: __objrs_root::Class;
         }
         unsafe { &CLASS }
       });

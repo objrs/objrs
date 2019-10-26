@@ -934,72 +934,67 @@ mod tests {
   extern crate objrs_test_utils;
 
   use super::*;
-  use crate::parse::selector_attr::{ItemMethod, MethodType, SelectorAttr};
+  use crate::parse::selector_attr::{ItemMethod, SelectorAttr};
   use objrs_test_utils::assert_tokens_eq;
-  use syn::parse_quote;
+  use syn::{parse2, parse_quote, ImplItemMethod};
+
+  fn make_method(tokens: TokenStream) -> Method {
+    let mut method = parse2::<ImplItemMethod>(tokens).unwrap();
+    let objrs_attr = method.attrs.remove(0);
+    assert!(objrs_attr.path.is_ident("objrs"));
+    let selector_attr = parse2::<SelectorAttr>(objrs_attr.tokens).unwrap();
+    return Method::new(selector_attr, ItemMethod::Impl(method)).unwrap();
+  }
 
   #[test]
   fn gen_msg_recv_instance() {
-    let objrs_root: Ident = parse_quote!(__objrs_root);
-    let method = Method {
-      attr: SelectorAttr {
-        sel: LitStr::new("foo:bar:", Span::call_site()),
-        call_super: false,
-        no_impl: false,
-        optional: None,
-        method_type: MethodType::Auto,
-      },
-      method: ItemMethod::Impl(parse_quote! {
-        #[doc = "This should be removed."]
-        pub extern "Rust" fn foo_bar(&self, arg1: u32, arg2: bool) -> f32 {
-          foo(arg1);
-          bar(arg2);
-          return baz();
-        }
-      }),
-      is_instance_method: true,
-      is_generic: false,
-    };
-    let method = gen_msg_recv(&method, "ClassName", None, &objrs_root).unwrap();
+    let method = make_method(quote! {
+      #[objrs(selector = "foo:bar:")]
+      #[doc = "This should be removed."]
+      pub extern "Rust" fn foo_bar(&self, arg1: u32, arg2: bool) -> f32 {
+        foo(arg1);
+        bar(arg2);
+        return baz();
+      }
+    });
+    let msg_recv = gen_msg_recv(&method, "ClassName", None, &parse_quote!(__objrs_root)).unwrap();
 
     let expected = quote! {
       #[doc(hidden)]
       #[export_name = "\u{1}-[ClassName foo:bar:]"]
-      extern "C" fn __objrs_msg_recv_foo_bar(&self, _: &'static __objrs_root::Sel, arg1: u32, arg2: bool) -> f32 {
+      extern "C" fn __objrs_msg_recv_foo_bar(
+        &self,
+        _: &'static __objrs_root::Sel,
+        arg1: u32,
+        arg2: bool
+      ) -> f32 {
         foo(arg1);
         bar(arg2);
         return baz();
       }
     };
-    assert_tokens_eq!(method, expected);
+    assert_tokens_eq!(msg_recv, expected);
   }
 
   #[test]
   fn gen_msg_recv_class_category() {
+    let method = make_method(quote! {
+      #[objrs(selector = "baz")]
+      unsafe fn baz() {
+      }
+    });
     let objrs_root: Ident = parse_quote!(__objrs_root);
-    let method = Method {
-      attr: SelectorAttr {
-        sel: LitStr::new("baz", Span::call_site()),
-        call_super: false,
-        no_impl: false,
-        optional: None,
-        method_type: MethodType::Auto,
-      },
-      method: ItemMethod::Impl(parse_quote! {
-        unsafe fn baz() {
-        }
-      }),
-      is_instance_method: false,
-      is_generic: false,
-    };
-    let method = gen_msg_recv(&method, "ClassName", Some("Category"), &objrs_root).unwrap();
+    let msg_recv = gen_msg_recv(&method, "ClassName", Some("Category"), &objrs_root).unwrap();
 
     let expected = quote! {
       #[doc(hidden)]
       #[export_name = "\u{1}+[ClassName(Category) baz]"]
-      unsafe extern "C" fn __objrs_msg_recv_baz(_: __objrs_root::__objrs::core::ptr::NonNull<__objrs_root::Class>, _: &'static __objrs_root::Sel) {
+      unsafe extern "C" fn __objrs_msg_recv_baz(
+        _: __objrs_root::__objrs::core::ptr::NonNull<__objrs_root::Class>,
+        _: &'static __objrs_root::Sel
+      ) {
       }
     };
-    assert_tokens_eq!(method, expected);
+    assert_tokens_eq!(msg_recv, expected);
   }
 }

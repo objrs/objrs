@@ -55,7 +55,7 @@ mod tests {
       sel: parse_quote!(#sel),
       sel_string: String::from(sel),
       ident: parse_quote!(SEL_REF),
-      u8_ty: parse_quote!(objrs::__objrs::u8),
+      u8_ty: parse_quote!(__objrs_root::__objrs::u8),
     };
   }
 
@@ -66,10 +66,10 @@ mod tests {
     let expected = quote! {
       #[link_section = "__DATA,__objc_selrefs,literal_pointers,no_dead_strip"]
       #[export_name = "\u{1}L_OBJC_SELECTOR_REFERENCES_.__objrs_sel._default_fake_random_identifier_.theSel"]
-      static SEL_REF: &'static [objrs::__objrs::u8; 7usize] = {
+      static SEL_REF: &'static [__objrs_root::__objrs::u8; 7usize] = {
         #[link_section = "__TEXT,__objc_methname,cstring_literals"]
         #[export_name = "\u{1}L_OBJC_METH_VAR_NAME_.__objrs_meth._default_fake_random_identifier_.theSel"]
-        static METH_NAME: [objrs::__objrs::u8; 7usize] = *b"theSel\0";
+        static METH_NAME: [__objrs_root::__objrs::u8; 7usize] = *b"theSel\0";
         &METH_NAME
       };
     };

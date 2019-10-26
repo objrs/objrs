@@ -57,28 +57,24 @@ mod tests {
   use super::*;
   use crate::parse::class_attr::ClassAttr;
   use objrs_test_utils::assert_tokens_eq;
-  use syn::parse_quote;
 
-  fn default_class_attr() -> ClassAttr {
-    return ClassAttr {
+  fn make_class(tokens: TokenStream) -> Class {
+    let class_attr = ClassAttr {
       class_name: None,
       super_class_name: None,
       super_class: None,
       force_extern: false,
       root_class_name: None,
-      objrs: None,
+      objrs: Some(priv_ident("__objrs_root")),
     };
+    return Class::new(class_attr, tokens).unwrap();
   }
 
   #[test]
   fn no_fields() {
-    let class = Class::new(
-      default_class_attr(),
-      parse_quote! {
-        struct Struct;
-      },
-    )
-    .unwrap();
+    let class = make_class(quote! {
+      struct Struct;
+    });
 
     let actual = field_offsets(&class);
     let expected = quote!([]);
@@ -87,30 +83,26 @@ mod tests {
 
   #[test]
   fn named_fields() {
-    let class = Class::new(
-      default_class_attr(),
-      parse_quote! {
-        struct Struct {
-          foo: u8,
-          bar: f32,
-          baz: char,
-        }
-      },
-    )
-    .unwrap();
+    let class = make_class(quote! {
+      struct Struct {
+        foo: u8,
+        bar: f32,
+        baz: char,
+      }
+    });
 
     let actual = field_offsets(&class);
     let expected = quote! {{
-      let base = objrs::__objrs::core::mem::MaybeUninit::<Struct>::uninit();
+      let base = __objrs_root::__objrs::core::mem::MaybeUninit::<Struct>::uninit();
 
       unsafe {
-        let base_ref = objrs::__objrs::TransmuteHack::<_, &Struct> { from: &base }.to;
-        let base_u8_ptr = base_ref as *const _ as *const objrs::__objrs::u8;
+        let base_ref = __objrs_root::__objrs::TransmuteHack::<_, &Struct> { from: &base }.to;
+        let base_u8_ptr = base_ref as *const _ as *const __objrs_root::__objrs::u8;
 
         [
-          (&base_ref.foo as *const _ as *const objrs::__objrs::u8).offset_from(base_u8_ptr) as objrs::__objrs::usize,
-          (&base_ref.bar as *const _ as *const objrs::__objrs::u8).offset_from(base_u8_ptr) as objrs::__objrs::usize,
-          (&base_ref.baz as *const _ as *const objrs::__objrs::u8).offset_from(base_u8_ptr) as objrs::__objrs::usize,
+          (&base_ref.foo as *const _ as *const __objrs_root::__objrs::u8).offset_from(base_u8_ptr) as __objrs_root::__objrs::usize,
+          (&base_ref.bar as *const _ as *const __objrs_root::__objrs::u8).offset_from(base_u8_ptr) as __objrs_root::__objrs::usize,
+          (&base_ref.baz as *const _ as *const __objrs_root::__objrs::u8).offset_from(base_u8_ptr) as __objrs_root::__objrs::usize,
         ]
       }
     }};
@@ -120,26 +112,22 @@ mod tests {
 
   #[test]
   fn unnamed_fields() {
-    let class = Class::new(
-      default_class_attr(),
-      parse_quote! {
-        struct Struct(u8, f32, char);
-      },
-    )
-    .unwrap();
+    let class = make_class(quote! {
+      struct Struct(u8, f32, char);
+    });
 
     let actual = field_offsets(&class);
     let expected = quote! {{
-      let base = objrs::__objrs::core::mem::MaybeUninit::<Struct>::uninit();
+      let base = __objrs_root::__objrs::core::mem::MaybeUninit::<Struct>::uninit();
 
       unsafe {
-        let base_ref = objrs::__objrs::TransmuteHack::<_, &Struct> { from: &base }.to;
-        let base_u8_ptr = base_ref as *const _ as *const objrs::__objrs::u8;
+        let base_ref = __objrs_root::__objrs::TransmuteHack::<_, &Struct> { from: &base }.to;
+        let base_u8_ptr = base_ref as *const _ as *const __objrs_root::__objrs::u8;
 
         [
-          (&base_ref.0 as *const _ as *const objrs::__objrs::u8).offset_from(base_u8_ptr) as objrs::__objrs::usize,
-          (&base_ref.1 as *const _ as *const objrs::__objrs::u8).offset_from(base_u8_ptr) as objrs::__objrs::usize,
-          (&base_ref.2 as *const _ as *const objrs::__objrs::u8).offset_from(base_u8_ptr) as objrs::__objrs::usize,
+          (&base_ref.0 as *const _ as *const __objrs_root::__objrs::u8).offset_from(base_u8_ptr) as __objrs_root::__objrs::usize,
+          (&base_ref.1 as *const _ as *const __objrs_root::__objrs::u8).offset_from(base_u8_ptr) as __objrs_root::__objrs::usize,
+          (&base_ref.2 as *const _ as *const __objrs_root::__objrs::u8).offset_from(base_u8_ptr) as __objrs_root::__objrs::usize,
         ]
       }
     }};

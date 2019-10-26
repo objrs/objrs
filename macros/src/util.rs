@@ -12,7 +12,8 @@ extern crate syn;
 #[cfg(test)]
 extern crate objrs_test_utils;
 
-use syn::{punctuated::Punctuated, token::Comma, AttrStyle, Attribute, FnArg, Pat, PatType};
+use crate::span_ext::SpanExt;
+use syn::{punctuated::Punctuated, token::Comma, AttrStyle, Attribute, FnArg, Ident, Pat, PatType};
 
 #[cfg(not(test))]
 pub use objrs_utils::RandomIdentifier;
@@ -48,41 +49,12 @@ pub fn is_instance_method(args: &Punctuated<FnArg, Comma>) -> bool {
   }
 }
 
-#[cfg(all(procmacro2_semver_exempt, not(test)))]
-pub fn priv_ident(ident: &str) -> proc_macro2::Ident {
-  return Ident::new(ident, proc_macro2::Span::def_site());
-}
-
-#[cfg(not(procmacro2_semver_exempt))]
 pub fn priv_ident(ident: &str) -> proc_macro2::Ident {
   return priv_ident_at(ident, proc_macro2::Span::call_site());
 }
 
-#[cfg(all(procmacro2_semver_exempt, not(test)))]
 pub fn priv_ident_at(ident: &str, span: proc_macro2::Span) -> proc_macro2::Ident {
-  let span = span.resolved_at(proc_macro2::Span::def_site());
-  return Ident::new(ident, span);
-}
-
-#[cfg(all(not(procmacro2_semver_exempt), not(test)))]
-pub fn priv_ident_at(ident: &str, span: proc_macro2::Span) -> proc_macro2::Ident {
-  let span = span.unstable().resolved_at(proc_macro::Span::def_site());
-  let ident = proc_macro::Ident::new(ident, span);
-  let tree: proc_macro::TokenTree = ident.into();
-  let stream: proc_macro::TokenStream = tree.into();
-  let stream: proc_macro2::TokenStream = stream.into();
-  let tree = stream.into_iter().next().expect("BUG: unexpected EOF, expected a single ident token");
-  match tree {
-    proc_macro2::TokenTree::Ident(ident) => return ident,
-    _ => panic!("BUG: unexpected token tree; expected a single ident token"),
-  }
-}
-
-// TODO: report an issue about not being able to use proc_macro::Span in unit tests. This doesn't
-// create a private identifier at all. But for unit tests, we don't check spans, so it's okay.
-#[cfg(test)]
-pub fn priv_ident_at(ident: &str, span: proc_macro2::Span) -> proc_macro2::Ident {
-  return proc_macro2::Ident::new(ident, span);
+  return Ident::new(ident, span.resolved_at_def_site());
 }
 
 // A re-implementation of drain_filter. See https://github.com/rust-lang/rust/issues/43244. Once
