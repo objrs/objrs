@@ -205,8 +205,9 @@ fn extract_ivar_attr(field: &mut Field, force_extern: bool) -> Result<IvarAttr, 
   let ivar_attr: IvarAttr;
   match take_objrs_attr(&mut field.attrs)? {
     Some(attr) => {
-      let span = attr.span();
-      ivar_attr = parse2(attr.tokens).map_err(|e| span.unstable().error(e.to_string()))?;
+      // let span = attr.span();
+      ivar_attr = parse2(attr.tokens).unwrap();
+      // ivar_attr = parse2(attr.tokens).map_err(|e| span.unstable().error(e.to_string()))?;
     }
     None => return Ok(IvarAttr::default()),
   }
@@ -265,7 +266,7 @@ impl Class {
     } else if attr.super_class.is_some() {
       root_class_name = LitStr::new("NSObject", Span::call_site());
     } else {
-      root_class_name = LitStr::new(&item.ident.to_string(), item.ident.span());
+      root_class_name = class_name.clone();
     }
 
     let super_class_name;

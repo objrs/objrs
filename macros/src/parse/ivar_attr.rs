@@ -58,7 +58,7 @@
 //! ```
 
 use syn::parse::{Parse, ParseStream};
-use syn::{Expr, LitStr};
+use syn::{parenthesized, Expr, LitStr};
 
 #[derive(Default)]
 pub struct IvarAttr {
@@ -69,6 +69,10 @@ pub struct IvarAttr {
 impl Parse for IvarAttr {
   fn parse(input: ParseStream) -> syn::parse::Result<Self> {
     use crate::parse::attr::{default, ivar, name, KV};
+
+    let content;
+    let _: syn::token::Paren = parenthesized!(content in input);
+    let input = &content;
 
     let mut kv = KV::new(input);
     kv.parse::<ivar, _>()?;

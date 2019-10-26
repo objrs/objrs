@@ -81,7 +81,7 @@ fn gen_statics(class: &Class) -> TokenStream {
   } else {
     statics.extend(quote! {
       #[doc(hidden)]
-      static #super_class_ident: () = ();
+      const #super_class_ident: () = ();
     });
   }
 
@@ -89,6 +89,10 @@ fn gen_statics(class: &Class) -> TokenStream {
 }
 
 fn requires_cxx_construct(class: &Class) -> TokenStream {
+  if class.item.fields.iter().len() == 0 {
+    return quote!(false);
+  }
+
   for ivar_attr in class.ivar_attrs.iter() {
     if ivar_attr.default.is_some() {
       return quote!(true);
@@ -96,8 +100,13 @@ fn requires_cxx_construct(class: &Class) -> TokenStream {
   }
 
   let objrs_root = &class.objrs;
-  let mut tokens = quote!(false);
-  for field in class.item.fields.iter() {
+  let mut iter = class.item.fields.iter();
+  let mut tokens = TokenStream::new();
+  if let Some(field) = iter.next() {
+    let field_ty = &field.ty;
+    tokens = quote!(<#field_ty as #objrs_root::__objrs::RequiresCxxConstruct>::VALUE);
+  }
+  for field in iter {
     let field_ty = &field.ty;
     tokens.extend(quote!(|| <#field_ty as #objrs_root::__objrs::RequiresCxxConstruct>::VALUE));
   }
@@ -105,9 +114,18 @@ fn requires_cxx_construct(class: &Class) -> TokenStream {
 }
 
 fn requires_cxx_destruct(class: &Class) -> TokenStream {
+  if class.item.fields.iter().len() == 0 {
+    return quote!(false);
+  }
+
   let objrs_root = &class.objrs;
-  let mut tokens = quote!(false);
-  for field in class.item.fields.iter() {
+  let mut iter = class.item.fields.iter();
+  let mut tokens = TokenStream::new();
+  if let Some(field) = iter.next() {
+    let field_ty = &field.ty;
+    tokens = quote!(<#field_ty as #objrs_root::__objrs::RequiresCxxDestruct>::VALUE);
+  }
+  for field in iter {
     let field_ty = &field.ty;
     tokens.extend(quote!(|| <#field_ty as #objrs_root::__objrs::RequiresCxxDestruct>::VALUE));
   }
@@ -590,3 +608,136 @@ fn fields_item(class: &Class) -> TokenStream {
 // }
 
 // // TODO: require ivars to implement the Default trait.
+
+#[cfg(test)]
+mod tests {
+  extern crate objrs_test_utils;
+
+  use super::*;
+  use crate::parse::class_attr::ClassAttr;
+  use objrs_test_utils::assert_tokens_eq;
+  use quote::ToTokens;
+  use syn::{parse2, ItemStruct};
+
+  fn make_class(tokens: TokenStream) -> Class {
+    let mut item = parse2::<ItemStruct>(tokens).unwrap();
+    let objrs_attr = item.attrs.remove(0);
+    assert!(objrs_attr.path.is_ident("objrs"));
+    let class_attr = objrs_attr.parse_args::<ClassAttr>().unwrap();
+    return Class::new(class_attr, item.into_token_stream()).unwrap();
+  }
+
+  #[test]
+  fn test_cxx_no_fields() {
+    let class = make_class(quote! {
+      #[objrs(class, super = NSObject)]
+      struct Foo;
+    });
+
+    let actual = requires_cxx_construct(&class);
+    let expected = quote!(false);
+    assert_tokens_eq!(actual, expected);
+
+    let actual = requires_cxx_destruct(&class);
+    assert_tokens_eq!(actual, expected);
+  }
+
+  #[test]
+  fn test_cxx_with_fields() {
+    let class = make_class(quote! {
+      #[objrs(class, super = NSObject)]
+      struct Foo {
+        x: f32,
+        y: u32,
+        #[objrs(ivar, name = "nop")]
+        z: char,
+      }
+    });
+
+    let actual = requires_cxx_construct(&class);
+    let expected = quote! {
+      <f32 as objrs::__objrs::RequiresCxxConstruct>::VALUE ||
+      <u32 as objrs::__objrs::RequiresCxxConstruct>::VALUE ||
+      <char as objrs::__objrs::RequiresCxxConstruct>::VALUE
+    };
+    assert_tokens_eq!(actual, expected);
+
+    let actual = requires_cxx_destruct(&class);
+    let expected = quote! {
+      <f32 as objrs::__objrs::RequiresCxxDestruct>::VALUE ||
+      <u32 as objrs::__objrs::RequiresCxxDestruct>::VALUE ||
+      <char as objrs::__objrs::RequiresCxxDestruct>::VALUE
+    };
+    assert_tokens_eq!(actual, expected);
+  }
+
+  #[test]
+  fn test_cxx_with_fields_with_custom_default() {
+    let class = make_class(quote! {
+      #[objrs(class, super = NSObject)]
+      struct Foo {
+        x: f32,
+        #[objrs(ivar, default = 42)]
+        y: u32,
+        z: char,
+      }
+    });
+
+    let actual = requires_cxx_construct(&class);
+    let expected = quote!(true);
+    assert_tokens_eq!(actual, expected);
+  }
+
+  #[test]
+  fn test_gen_statics() {
+    let class = make_class(quote! {
+      #[objrs(class, name = "ClassName", super(name = "SuperName", type = SuperTy), root_class = "RootName")]
+      struct ClassTy;
+    });
+
+    let actual = gen_statics(&class);
+    let expected = quote! {
+      extern "C" {
+        #[doc(hidden)]
+        #[link_name = "OBJC_METACLASS_$_RootName"]
+        static __objrs_rootmeta_ClassTy: objrs::Class;
+
+        #[doc(hidden)]
+        #[link_name = "OBJC_METACLASS_$_SuperName"]
+        static __objrs_supermeta_ClassTy: objrs::__objrs::runtime::objc_class;
+      }
+
+      extern "C" {
+        #[doc(hidden)]
+        #[link_name = "OBJC_CLASS_$_SuperName"]
+        static __objrs_super_ClassTy: objrs::Class;
+      }
+    };
+    assert_tokens_eq!(actual, expected);
+  }
+
+  #[test]
+  fn test_gen_statics_root_class() {
+    let class = make_class(quote! {
+      #[objrs(class, name = "ClassName", root_class)]
+      struct ClassTy;
+    });
+
+    let actual = gen_statics(&class);
+    let expected = quote! {
+      extern "C" {
+        #[doc(hidden)]
+        #[link_name = "OBJC_METACLASS_$_ClassName"]
+        static __objrs_rootmeta_ClassTy: objrs::Class;
+
+        #[doc(hidden)]
+        #[link_name = "OBJC_CLASS_$_ClassName"]
+        static __objrs_supermeta_ClassTy: objrs::__objrs::runtime::objc_class;
+      }
+
+      #[doc(hidden)]
+      const __objrs_super_ClassTy: () = ();
+    };
+    assert_tokens_eq!(actual, expected);
+  }
+}
