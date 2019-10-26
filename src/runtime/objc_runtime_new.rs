@@ -187,8 +187,11 @@ pub struct objc_class {
   pub bits: *const class_ro_t,
 }
 
-#[allow(non_camel_case_types)]
-pub enum classref {} // TODO: just use an extern type here?
+extern "C" {
+  #[allow(non_camel_case_types)]
+  pub type  classref;
+}
+
 #[allow(non_camel_case_types)]
 pub type classref_t = *mut classref;
 
