@@ -15,7 +15,7 @@ use crate::parse::class_attr::Class;
 use crate::util::priv_ident;
 
 use proc_macro2::{Literal, Span, TokenStream, TokenTree};
-use quote::quote;
+use quote::{quote, ToTokens};
 use syn::{
   parse2, parse_quote, punctuated::Punctuated, spanned::Spanned, token::Comma, Attribute, Field,
   Fields, GenericParam, Ident, ItemStruct, LitByteStr, LitStr, Type, Visibility,
@@ -153,13 +153,19 @@ pub fn pub_item_struct_and_deref_impls(class: &Class) -> TokenStream {
     phantom_generics.extend(quote!(& #lifetime (),));
   }
 
+  let mut attrs = TokenStream::new();
+  for attr in class.item.attrs.iter() {
+    attr.to_tokens(&mut attrs);
+  }
   let vis = &class.item.vis;
   let struct_token = &class.item.struct_token;
   return quote! {
-    // TODO: apply the item's user-provided attributes?
+    #attrs
     #[repr(transparent)]
-    #vis #struct_token #pub_ident #generics {
+    #vis #struct_token #pub_ident #generics #where_clause {
+      #[doc(hidden)]
       #generics_field: #objrs_root::__objrs::core::marker::PhantomData<(#phantom_generics)>,
+      #[doc(hidden)]
       #this_field: #super_ty,
     }
 
@@ -616,7 +622,6 @@ mod tests {
   use super::*;
   use crate::parse::class_attr::ClassAttr;
   use objrs_test_utils::assert_tokens_eq;
-  use quote::ToTokens;
   use syn::{parse2, ItemStruct};
 
   fn make_class(tokens: TokenStream) -> Class {
@@ -737,6 +742,83 @@ mod tests {
 
       #[doc(hidden)]
       const __objrs_super_ClassTy: () = ();
+    };
+    assert_tokens_eq!(actual, expected);
+  }
+
+  #[test]
+  fn test_pub_item_struct_and_deref_impls() {
+    let class = make_class(quote! {
+      #[objrs(class, super = SuperTy)]
+      pub struct ClassTy<T> where T: objrs::marker::Class {
+        foo: u8,
+        bar: u16,
+      }
+    });
+
+    let actual = pub_item_struct_and_deref_impls(&class);
+    let expected = quote! {
+      #[repr(transparent)]
+      pub struct ClassTy<T> where T: objrs::marker::Class {
+        #[doc(hidden)]
+        __objrs_field_generics: objrs::__objrs::core::marker::PhantomData<(T,)>,
+        #[doc(hidden)]
+        __objrs_field_this: SuperTy,
+      }
+
+      impl<T> objrs::__objrs::core::ops::Deref for ClassTy<T> where T: objrs::marker::Class {
+        type Target = SuperTy;
+
+        #[inline(always)]
+        fn deref(&self) -> &Self::Target {
+          return &self.__objrs_field_this;
+        }
+      }
+
+      impl<T> objrs::__objrs::core::ops::DerefMut for ClassTy<T> where T: objrs::marker::Class {
+        #[inline(always)]
+        fn deref_mut(&mut self) -> &mut Self::Target {
+          return &mut self.__objrs_field_this;
+        }
+      }
+    };
+    assert_tokens_eq!(actual, expected);
+  }
+
+  #[test]
+  fn test_pub_item_struct_and_deref_impls_root_class() {
+    let class = make_class(quote! {
+      #[objrs(class, name = "ClassName", root_class)]
+      #[doc = "Keep this"]
+      struct ClassTy;
+    });
+
+    let actual = pub_item_struct_and_deref_impls(&class);
+    let expected = quote! {
+      #[doc = "Keep this"]
+      #[repr(transparent)]
+      struct ClassTy {
+        #[doc(hidden)]
+        __objrs_field_generics: objrs::__objrs::core::marker::PhantomData<()>,
+        #[doc(hidden)]
+        __objrs_field_this: objrs::Id,
+      }
+
+      impl objrs::__objrs::core::ops::Deref for ClassTy {
+        type Target = objrs::Id;
+
+        #[inline(always)]
+        fn deref(&self) -> &Self::Target {
+          return &self.__objrs_field_this;
+        }
+      }
+
+      impl objrs::__objrs::core::ops::DerefMut for ClassTy {
+        #[inline(always)]
+        fn deref_mut(&mut self) -> &mut Self::Target {
+          return &mut self.__objrs_field_this;
+        }
+      }
     };
     assert_tokens_eq!(actual, expected);
   }
