@@ -12,10 +12,10 @@ extern crate proc_macro2;
 extern crate syn;
 
 use crate::parse::class_attr::Class;
+use crate::span_ext::SpanExt;
 use crate::util::priv_ident;
-
 use proc_macro2::{Literal, Span, TokenStream, TokenTree};
-use quote::{quote, ToTokens};
+use quote::{quote, quote_spanned, ToTokens};
 use syn::{
   parse2, parse_quote, punctuated::Punctuated, spanned::Spanned, token::Comma, Attribute, Field,
   Fields, GenericParam, Ident, ItemStruct, LitByteStr, LitStr, Type, Visibility,
@@ -89,7 +89,7 @@ fn gen_statics(class: &Class) -> TokenStream {
 }
 
 fn requires_cxx_construct(class: &Class) -> TokenStream {
-  if class.item.fields.iter().len() == 0 {
+  if class.item.fields.is_empty() {
     return quote!(false);
   }
 
@@ -114,7 +114,7 @@ fn requires_cxx_construct(class: &Class) -> TokenStream {
 }
 
 fn requires_cxx_destruct(class: &Class) -> TokenStream {
-  if class.item.fields.iter().len() == 0 {
+  if class.item.fields.is_empty() {
     return quote!(false);
   }
 
@@ -188,33 +188,82 @@ pub fn pub_item_struct_and_deref_impls(class: &Class) -> TokenStream {
 }
 
 fn fields_item(class: &Class) -> TokenStream {
-  let _vis = &class.item.vis;
-  let _struct_token = &class.item.struct_token;
-  return quote! {
-    // #vis #struct_token #pub_ident {
-    // }
+  let objrs_root = &class.objrs;
+
+  let mut fields = class.item.fields.clone();
+  for field in fields.iter_mut() {
+    let ty = &field.ty;
+    let span = field.ty.span();
+    let head = quote_spanned!(span => #objrs_root::__objrs::Field<);
+    let tail = quote_spanned!(span => >);
+    field.ty = Type::Verbatim(quote!(#head #ty #tail));
+  }
+
+  let (impl_generics, ty_generics, where_clause) = class.item.generics.split_for_impl();
+  let priv_item = ItemStruct {
+    attrs: Vec::new(),
+    vis: class.item.vis.clone(),
+    struct_token: class.item.struct_token,
+    ident: class.item.ident.clone().resolved_at_def_site(),
+    generics: class.item.generics.clone(),
+    fields: fields,
+    semi_token: class.item.semi_token,
   };
-  //   let mut item_fields = item.clone();
-  //   item_fields.ident = priv_ident.clone();
-  //   item_fields.generics = Default::default();
 
-  //   match item_fields.fields {
-  //     Fields::Named(_) => fields_init = quote!({ #fields_init }),
-  //     Fields::Unnamed(_) => fields_init = quote!((#fields_init)),
-  //     Fields::Unit => (),
-  //   }
+  let offset_name_prefix: &str = &["OBJC_IVAR_$_", &class.class_name.value(), "."].concat();
+  let mut fields_init = TokenStream::new();
+  for (i, (field, attr)) in class.item.fields.iter().zip(class.ivar_attrs.iter()).enumerate() {
+    let offset_export_name;
+    match (&attr.name, &field.ident) {
+      (Some(name), _) => offset_export_name = [offset_name_prefix, &name.value()].concat(),
+      (None, Some(ident)) => offset_export_name = [offset_name_prefix, &ident.to_string()].concat(),
+      (None, None) => offset_export_name = format!("{}{}", offset_name_prefix, i),
+    }
 
-  //   for field in item_fields.fields.iter_mut() {
-  //     let new_ty;
-  //     {
-  //       let ty = &field.ty;
-  //       let span = field.ty.span();
-  //       let head = quote_spanned!(span => #objrs_root::__objrs::Field<);
-  //       let tail = quote_spanned!(span => >);
-  //       new_ty = parse_quote!(#head #ty #tail);
-  //     }
-  //     field.ty = new_ty;
-  //   }
+    let ident = &field.ident;
+    let colon = &field.colon_token;
+    fields_init.extend(quote! {
+      #ident #colon {
+        extern "C" {
+          #[link_name = #offset_export_name]
+          static IVAR_OFFSET: #objrs_root::__objrs::usize;
+        }
+        unsafe { #objrs_root::__objrs::Field::with_offset(&IVAR_OFFSET) }
+      },
+    });
+  }
+
+  match class.item.fields {
+    Fields::Named(_) => fields_init = quote!({ #fields_init }),
+    Fields::Unnamed(_) => fields_init = quote!((#fields_init)),
+    Fields::Unit => (),
+  }
+
+  let pub_ty_ident = &class.item.ident;
+  let priv_ty_ident = &priv_item.ident;
+
+  return quote! {
+    #[doc(hidden)]
+    #priv_item
+
+    impl #impl_generics #objrs_root::__objrs::Fields for #pub_ty_ident #ty_generics #where_clause {
+      type Type = #priv_ty_ident #ty_generics;
+
+      #[inline(always)]
+      fn from_ref(&self) -> #objrs_root::__objrs::ThisAndFields<Self, Self::Type> {
+        return <Self as #objrs_root::__objrs::Fields>::from_ptr(self as *const _ as *mut _);
+      }
+
+      #[inline(always)]
+      fn from_ptr(this: *mut Self) -> #objrs_root::__objrs::ThisAndFields<Self, Self::Type> {
+        #[allow(deprecated)]
+        return #objrs_root::__objrs::ThisAndFields {
+          this: this,
+          fields: #priv_ty_ident #fields_init,
+        };
+      }
+    }
+  };
 }
 
 // pub fn transform_class(class: Class) -> Result<TokenStream, Diagnostic> {
@@ -817,6 +866,133 @@ mod tests {
         #[inline(always)]
         fn deref_mut(&mut self) -> &mut Self::Target {
           return &mut self.__objrs_field_this;
+        }
+      }
+    };
+    assert_tokens_eq!(actual, expected);
+  }
+
+  #[test]
+  fn test_fields_item_unit() {
+    let class = make_class(quote! {
+      #[objrs(class, name = "ClassName", root_class)]
+      #[doc = "Remove this"]
+      struct ClassTy;
+    });
+
+    let actual = fields_item(&class);
+    let expected = quote! {
+      #[doc(hidden)]
+      struct ClassTy;
+
+      impl objrs::__objrs::Fields for ClassTy {
+        type Type = ClassTy;
+
+        #[inline(always)]
+        fn from_ref(&self) -> objrs::__objrs::ThisAndFields<Self, Self::Type> {
+          return <Self as objrs::__objrs::Fields>::from_ptr(self as *const _ as *mut _);
+        }
+
+        #[inline(always)]
+        fn from_ptr(this: *mut Self) -> objrs::__objrs::ThisAndFields<Self, Self::Type> {
+          #[allow(deprecated)]
+          return objrs::__objrs::ThisAndFields {
+            this: this,
+            fields: ClassTy,
+          };
+        }
+      }
+    };
+    assert_tokens_eq!(actual, expected);
+  }
+
+  #[test]
+  fn test_fields_item_tuple() {
+    let class = make_class(quote! {
+      #[objrs(class, name = "ClassName", root_class)]
+      struct ClassTy<T: objrs::marker::Class>(u8, T);
+    });
+
+    let actual = fields_item(&class);
+    let expected = quote! {
+      #[doc(hidden)]
+      struct ClassTy<T: objrs::marker::Class>(objrs::__objrs::Field<u8>, objrs::__objrs::Field<T>);
+
+      impl<T: objrs::marker::Class> objrs::__objrs::Fields for ClassTy<T> {
+        type Type = ClassTy<T>;
+
+        #[inline(always)]
+        fn from_ref(&self) -> objrs::__objrs::ThisAndFields<Self, Self::Type> {
+          return <Self as objrs::__objrs::Fields>::from_ptr(self as *const _ as *mut _);
+        }
+
+        #[inline(always)]
+        fn from_ptr(this: *mut Self) -> objrs::__objrs::ThisAndFields<Self, Self::Type> {
+          #[allow(deprecated)]
+          return objrs::__objrs::ThisAndFields {
+            this: this,
+            fields: ClassTy(
+              {
+                extern "C" {
+                  #[link_name = "OBJC_IVAR_$_ClassName.0"]
+                  static IVAR_OFFSET: objrs::__objrs::usize;
+                }
+                unsafe { objrs::__objrs::Field::with_offset(&IVAR_OFFSET) }
+              },
+              {
+                extern "C" {
+                  #[link_name = "OBJC_IVAR_$_ClassName.1"]
+                  static IVAR_OFFSET: objrs::__objrs::usize;
+                }
+                unsafe { objrs::__objrs::Field::with_offset(&IVAR_OFFSET) }
+              },
+            ),
+          };
+        }
+      }
+    };
+    assert_tokens_eq!(actual, expected);
+  }
+
+  #[test]
+  fn test_fields_item_struct() {
+    let class = make_class(quote! {
+      #[objrs(class, name = "ClassName", root_class)]
+      struct ClassTy<T> where T: objrs::marker::Class {
+        value: T,
+      }
+    });
+
+    let actual = fields_item(&class);
+    let expected = quote! {
+      #[doc(hidden)]
+      struct ClassTy<T> where T: objrs::marker::Class {
+        value: objrs::__objrs::Field<T>,
+      }
+
+      impl<T> objrs::__objrs::Fields for ClassTy<T> where T: objrs::marker::Class {
+        type Type = ClassTy<T>;
+
+        #[inline(always)]
+        fn from_ref(&self) -> objrs::__objrs::ThisAndFields<Self, Self::Type> {
+          return <Self as objrs::__objrs::Fields>::from_ptr(self as *const _ as *mut _);
+        }
+
+        #[inline(always)]
+        fn from_ptr(this: *mut Self) -> objrs::__objrs::ThisAndFields<Self, Self::Type> {
+          #[allow(deprecated)]
+          return objrs::__objrs::ThisAndFields {
+            this: this,
+            fields: ClassTy {
+              value: {
+                extern "C" {
+                  #[link_name = "OBJC_IVAR_$_ClassName.value"]
+                  static IVAR_OFFSET: objrs::__objrs::usize;
+                }
+                unsafe { objrs::__objrs::Field::with_offset(&IVAR_OFFSET) }
+              },
+            },
+          };
         }
       }
     };
