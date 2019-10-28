@@ -266,7 +266,7 @@ fn fields_item(class: &Class) -> TokenStream {
   };
 }
 
-fn pub_impls(class: &Class) -> TokenStream {
+fn marker_impls(class: &Class) -> TokenStream {
   let objrs_root = &class.objrs;
   let ident = &class.item.ident;
   let (impl_generics, ty_generics, where_clause) = class.item.generics.split_for_impl();
@@ -625,7 +625,7 @@ mod tests {
   }
 
   #[test]
-  fn test_pub_impls() {
+  fn test_marker_impls() {
     let class = make_class(quote! {
       #[objrs(class, super = SuperTy)]
       struct ClassTy<T> where T: objrs::marker::Class {
@@ -633,7 +633,7 @@ mod tests {
       }
     });
 
-    let actual = pub_impls(&class);
+    let actual = marker_impls(&class);
     let expected = quote! {
       unsafe impl<T> objrs::marker::Class for ClassTy<T> where T: objrs::marker::Class {}
       unsafe impl<T> objrs::marker::NonRootClass for ClassTy<T> where T: objrs::marker::Class {
@@ -644,7 +644,7 @@ mod tests {
   }
 
   #[test]
-  fn test_pub_impls_root_class() {
+  fn test_marker_impls_root_class() {
     let class = make_class(quote! {
       #[objrs(class, root_class)]
       struct ClassTy<T> where T: objrs::marker::Class {
@@ -652,7 +652,7 @@ mod tests {
       }
     });
 
-    let actual = pub_impls(&class);
+    let actual = marker_impls(&class);
     let expected = quote! {
       unsafe impl<T> objrs::marker::Class for ClassTy<T> where T: objrs::marker::Class {}
       unsafe impl<T> objrs::marker::RootClass for ClassTy<T> where T: objrs::marker::Class {}
