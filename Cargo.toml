@@ -13,6 +13,8 @@ members = [
   "frameworks/foundation/macros",
   "frameworks/metal",
   "frameworks/metal_kit",
+  "macos",
+  "macos_demo",
   "macros",
   "test_utils",
   "tiny_test",
@@ -24,7 +26,7 @@ exclude = ["test"]
 [package]
 name = "objrs"
 version = "0.0.3-dev"
-authors = ["Michael Bradshaw <mjbshaw@gmail.com>"]
+authors = ["Michael Bradshaw <mjbshaw@gmail.com>, CoolBlueWater"]
 edition = "2018"
 license = "Apache-2.0 OR MIT OR MPL-2.0"
 description = "Objective-Rust: the unholy union of Rust and Objective-C."

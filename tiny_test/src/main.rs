@@ -31,8 +31,21 @@ impl NSObject {
   fn hash(&self) -> <Self as Trait>::Foo {}
 }
 
+#[objrs(protocol)]
+#[link(name = "Foundation", kind = "framework")]
+pub trait NSCopying {
+}
+
+pub struct Arc<T: ?Sized> {
+    ptr: std::ptr::NonNull<T>,
+}
+pub trait NSCopying2 {
+  fn new() -> Option<Arc<Self>>;
+}
+
 #[no_mangle]
 fn main(_argc: i32, _argv: *const *const u8) -> i32 {
+	println!("Running tiny_tests");
   let _class = objrs::class!(r#"NSObject"#);
   let _sel = objrs::selector!(r#"Hello"#);
   return 0;
