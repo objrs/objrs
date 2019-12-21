@@ -1,0 +1,26 @@
+# This file and its contents are licensed by their authors and copyright holders under the Apache
+# License (Version 2.0), MIT license, or Mozilla Public License (Version 2.0), at your option, and
+# may not be copied, modified, or distributed except according to those terms. For copies of these
+# licenses and more information, see the COPYRIGHT file in this distribution's top-level directory.
+
+[package]
+name = "macos_demo"
+version = "0.0.2"
+authors = ["Michael Bradshaw <mjbshaw@gmail.com>"]
+edition = "2018"
+license = "Apache-2.0 OR MIT OR MPL-2.0"
+description = "Demonstration of objrs."
+repository = "https://gitlab.com/objrs/objrs"
+readme = "README.md"
+
+[badges]
+maintenance = { status = "experimental" }
+
+[[bin]]
+name = "macos_demo"
+path = "src/main.rs"
+doc = false
+
+[dependencies]
+objrs = { path = "..", version = "0.0.3-dev" }
+macos = { path = "../macos/" }

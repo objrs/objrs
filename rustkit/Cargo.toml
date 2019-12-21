@@ -1,0 +1,53 @@
+[workspace]
+members = [
+	".",
+	"rustkit_bindgen",
+]
+
+[package]
+name = "rustkit"
+version = "0.0.1"
+
+authors = ["Michael Wu <mwu.code@gmail.com>, CoolBlueWater"]
+description = "Fast and ergonomic Rust bindings for ObjC APIs"
+repository = "https://github.com/michaelwu/RustKit"
+readme = "README.md"
+license = "Apache-2.0/MIT"
+
+[build-dependencies]
+rustkit_bindgen = { path = "rustkit_bindgen", version = "0.0.1" }
+
+[dependencies]
+bitflags = "1.0"
+# FIEME: This should be a runtime dependency only for the binary
+# and only when the objrs feature is enabled.
+rustkit_bindgen = { path = "rustkit_bindgen", version = "0.0.1" }
+
+[features]
+default = ["RK_Foundation", "objrs"]
+
+# Create bindings for objrs instead of rustkit
+# Note: this is also specified in rust_bindgen/Cargo.toml.
+objrs = []
+
+RK_AVFoundation = []
+RK_AVKit = []
+RK_AppKit = []
+RK_AudioToolbox = []
+RK_CoreAudio = []
+RK_CoreData = []
+RK_CoreFoundation = []
+RK_CoreGraphics = []
+RK_CoreImage = []
+RK_CoreMedia = []
+RK_CoreServices = []
+RK_CoreVideo = []
+RK_DiskArbitration = []
+RK_Foundation = []
+RK_IOSurface = []
+RK_ImageIO = []
+RK_MediaToolbox = []
+RK_Metal = []
+RK_OpenGL = []
+RK_QuartzCore = []
+RK_Security = []
